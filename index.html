@@ -4717,43 +4717,79 @@ const Arms = (() => {
     if (sweet) { for (let i = 0; i < 16; i++) spawnParticle(C.clone(), V3(rand(-5, 5), rand(1, 7), rand(-5, 5)), 0xffffff, 0.1, 0.35, 8, true); if (typeof flashLight === 'function') flashLight(C, 0xff6040, 4, 0.1); }
     if (me && me.alive) { const d = C.distanceTo(me.pos); if (d < (big ? 14 : 7)) shakeAmt += (big ? 0.9 : sweet ? 0.35 : 0.14) * (1 - d / (big ? 14 : 7)); }
   }
-  // ---------- animation: eased per-move poses, smoothed, plus a spark trail off the hammer head ----------
+  // ---------- animation: two-handed keyframed poses, smoothly blended, arms solved onto the haft ----------
+  // A pose = hammer pitch (hx: 0 forward, PI/2 straight up, more = behind), sideways sweep (ry), roll (rz), the grip point (piv,
+  // in the aim group) and how much the head looks up. Both arms reach from the shoulders to two points on the haft every frame.
+  const POSE = {
+    idle:   { hx: 1.15, ry: 0, rz: 0.6, piv: [0.12, -0.3, -0.2], look: 0.05 },        // diagonal across the body, head up by the left shoulder
+    wind:   { hx: 2.55, ry: 0, rz: 0.12, piv: [0.06, 0.22, -0.02], look: 0.3 },       // raised behind the head
+    smash:  { hx: -0.6, ry: 0, rz: 0, piv: [0.04, -0.18, -0.4], look: -0.2 },         // driven down in front
+    low:    { hx: -0.75, ry: 0, rz: -0.25, piv: [0.16, -0.36, -0.28], look: -0.1 },   // uppercut start: hammer low
+    high:   { hx: 2.0, ry: 0, rz: 0, piv: [0.05, 0.32, -0.1], look: 0.4 },            // uppercut finish: thrown up high
+    out:    { hx: 0.12, ry: -1.35, rz: 0, piv: [0.28, -0.04, -0.08], look: 0 },       // spins: swept out to the side
+    thor:   { hx: 1.62, ry: 0, rz: 0, piv: [0.02, 0.4, -0.08], look: 0.45 },          // overhead, both arms up
+  };
+  const GRIP = [0.07, 0.5];   // hand positions along the haft (m from the grip end, at full hammer scale)
+  const _q = new THREE.Quaternion(), _e = new THREE.Euler(0, 0, 0, 'ZYX'), _m = new THREE.Matrix4(), _fwd = new THREE.Vector3(0, 0, -1);
   function headLocal(g) {
     if (g.userData.head) return g.userData.head;
     let minZ = 0; g.traverse(o => { if (o.isMesh) { o.geometry.computeBoundingBox(); minZ = Math.min(minZ, o.geometry.boundingBox.min.z); } });
     return (g.userData.head = V3(0, 0, minZ * 0.85));
   }
+  function targetPose(p) {
+    const k = p.tAnim, t = time - (p.tAnimT || -9);
+    if (k === 'swing' && t < 0.55) return [t < 0.14 ? POSE.wind : t < 0.32 ? POSE.smash : POSE.idle, t < 0.14 ? 22 : t < 0.32 ? 45 : 12, 0, t > 0.12 && t < 0.32];
+    if (k === 'upper' && t < 0.55) return [t < 0.12 ? POSE.low : t < 0.32 ? POSE.high : POSE.idle, t < 0.12 ? 30 : t < 0.32 ? 40 : 12, 0, t > 0.1 && t < 0.32];
+    if (k === 'whirl' && t < 0.5) return [POSE.out, 30, ease.inOut(t / 0.5) * Math.PI * 2, true];
+    if (k === 'leap' && t < 2.5) return t < 0.5 ? [POSE.out, 30, ease.out(t / 0.5) * Math.PI * 2, true] : [POSE.thor, 18, 0, true];
+    if (k === 'dive' && t < 2.5) return [POSE.thor, 25, 0, true];
+    if (k === 'land' && t < 0.5) return [t < 0.3 ? POSE.smash : POSE.idle, t < 0.3 ? 55 : 12, 0, t < 0.1];
+    return [POSE.idle, 10, 0, false];
+  }
+  function saveArms(av) {
+    if (av.armDef || !av.arms) return;
+    av.armDef = av.arms.map(a => ({ p: a.position.clone(), q: a.quaternion.clone(), s: a.scale.clone() }));
+    av.pivDef = av.gunPivot.position.clone();
+  }
+  function resetArms(av) {
+    if (!av.armMod) return; av.armMod = false;
+    av.arms.forEach((a, i) => { const d = av.armDef[i]; a.position.copy(d.p); a.quaternion.copy(d.q); a.scale.copy(d.s); });
+    av.gunPivot.position.copy(av.pivDef);
+  }
+  // put an arm box (0.55 m along -z) between a shoulder and a hand, in the aim group's space
+  function reach(arm, S, H) {
+    const d = _c.copy(H).sub(S), len = d.length() || 1e-3;
+    arm.position.copy(S).addScaledVector(d, 0.5);
+    arm.quaternion.setFromUnitVectors(_fwd, d.divideScalar(len));
+    arm.scale.set(1, 1, clamp(len / 0.55, 0.55, 1.6));
+  }
+  const SH = [new THREE.Vector3(0.33, 0.07, 0.02), new THREE.Vector3(-0.33, 0.07, 0.02)];   // right, left shoulder (aim-group space)
   function titanPose(p, av, dt) {
     const g = av.guns[W_TITAN]; if (!g) return;
+    saveArms(av);
     g.visible = !p.hThrown;
-    const k = p.tAnim, t = time - (p.tAnimT || -9), E = ease;
-    let hx = 0.8, spin = 0, lean = 0, trail = false;
-    if (k === 'swing' && t < 0.55) {
-      hx = t < 0.14 ? lerp(0.8, 1.7, E.out(t / 0.14)) : t < 0.3 ? lerp(1.7, -0.9, E.inOut((t - 0.14) / 0.16)) : lerp(-0.9, 0.8, E.out((t - 0.3) / 0.25));
-      lean = t > 0.14 && t < 0.42 ? 0.32 : 0; trail = t > 0.12 && t < 0.32;
-    } else if (k === 'upper' && t < 0.55) {
-      hx = t < 0.12 ? lerp(0.8, -1.0, E.out(t / 0.12)) : t < 0.3 ? lerp(-1.0, 2.2, E.inOut((t - 0.12) / 0.18)) : lerp(2.2, 0.8, E.out((t - 0.3) / 0.25));
-      lean = t < 0.3 ? -0.28 : 0; trail = t > 0.1 && t < 0.32;
-    } else if (k === 'whirl' && t < 0.5) {
-      spin = E.inOut(t / 0.5) * Math.PI * 2; hx = 0.05; lean = 0.15; trail = true;
-    } else if (k === 'leap' && t < 2.5 && p.slam !== false || k === 'leap' && t < 2.5 && !owns(p)) {
-      if (t < 0.5) { spin = E.out(t / 0.5) * Math.PI * 2; hx = lerp(0.1, 0.35, t / 0.5); }
-      else { hx = lerp(0.35, 2.1, E.out((t - 0.5) / 0.22)); lean = -0.32; }
-      trail = true;
-    } else if (k === 'dive' && t < 2.5) {
-      hx = lerp(0.8, 2.1, E.out(t / 0.15)); lean = -0.36; trail = true;
-    } else if (k === 'land' && t < 0.5) {
-      hx = t < 0.09 ? lerp(2.1, -0.95, E.inOut(t / 0.09)) : t < 0.28 ? -0.95 : lerp(-0.95, 0.8, E.out((t - 0.28) / 0.22));
-      lean = t < 0.28 ? 0.5 : lerp(0.5, 0, (t - 0.28) / 0.22); trail = t < 0.1;
-    } else if (k === 'catch' && t < 0.3) { hx = lerp(0.2, 0.8, E.out(t / 0.3)); lean = lerp(-0.15, 0, t / 0.3); }
-    else if (p.hThrown) { hx = 0.25; lean = 0.08; }
-    // smooth the arm + lean (spins stay exact so a 360 is a full 360)
-    av.thx = av.thx === undefined ? hx : lerp(av.thx, hx, 1 - Math.exp(-30 * dt));
-    av.tlean = av.tlean === undefined ? lean : lerp(av.tlean, lean, 1 - Math.exp(-14 * dt));
-    g.rotation.x = av.thx; av.root.rotation.y += spin; av.upper.rotation.x += av.tlean;
-    if (trail && g.visible && g.matrixWorld) {
+    if (p.hThrown) { resetArms(av); return; }
+    const [P, rate, spin, trail] = targetPose(p), s = av.ts || (av.ts = { hx: POSE.idle.hx, ry: 0, rz: POSE.idle.rz, px: POSE.idle.piv[0], py: POSE.idle.piv[1], pz: POSE.idle.piv[2], look: 0 });
+    const a = 1 - Math.exp(-rate * dt), b = 1 - Math.exp(-12 * dt);
+    s.hx = lerp(s.hx, P.hx, a); s.ry = lerp(s.ry, P.ry, a); s.rz = lerp(s.rz, P.rz, a);
+    s.px = lerp(s.px, P.piv[0], a); s.py = lerp(s.py, P.piv[1], a); s.pz = lerp(s.pz, P.piv[2], a); s.look = lerp(s.look, P.look, b);
+    // the hammer doesn't point where you look any more: the body carries it; the aim group only follows the view a little
+    av.aim.rotation.x = p.pitch * 0.2;
+    av.neck.rotation.x = p.pitch * 0.5 + s.look;
+    av.gunPivot.position.set(s.px, s.py, s.pz);
+    g.rotation.copy(_e.set(s.hx, s.ry, s.rz, 'ZYX'));
+    av.root.rotation.y += spin;
+    // hands on the haft: two points along the hammer's axis, through the pivot + hammer transforms
+    g.updateMatrix(); av.gunPivot.updateMatrix();
+    const sc = g.scale.x || 1;
+    for (let i = 0; i < 2; i++) {
+      const h = V3(0, 0, -GRIP[i] / sc).applyMatrix4(g.matrix).applyMatrix4(av.gunPivot.matrix);
+      reach(av.arms[i === 0 ? 0 : 1], SH[i], h);
+    }
+    av.armMod = true;
+    if (trail && g.visible) {
       const hp = g.localToWorld(headLocal(g).clone());
-      for (let i = 0; i < 2; i++) spawnParticle(hp.clone().add(V3(rand(-.2, .2), rand(-.2, .2), rand(-.2, .2))), V3(), k === 'leap' || k === 'dive' ? 0xffd060 : 0xffb020, 0.2, 0.22, 0, true);
+      for (let i = 0; i < 2; i++) spawnParticle(hp.clone().add(V3(rand(-.2, .2), rand(-.2, .2), rand(-.2, .2))), V3(), p.tAnim === 'leap' || p.tAnim === 'dive' ? 0xffd060 : 0xffb020, 0.2, 0.22, 0, true);
     }
   }
   // remote players' hammer moves arrive as 'f' messages
@@ -4801,7 +4837,7 @@ const Arms = (() => {
   }
   // bots: where the scythe makes sense, and which power weapons want close range
   const botMayFire = (b, w, dist) => !(w.dash && dist > w.dash - 1) && !(w.strike && dist < 7) && !(w.proj === 'turret' && dist > 30);
-  return { PROJ, FX, projMesh, fire, dmgMul, rhythm, rateMul, shove, airMul, preMove, dashVel, postMove, tick, steer, stillTick, onSpawnProj, onRemoteProj, beamFx, spawnEffect, update, hitMeshes, isTurretId, hitTurret, blastTurrets, onMsg, clear, warmObjects, drawRadar, botMayFire, botThreat, titanFx, titanHud, swingCenter, titanPose, onRemoteTitan, onBoom, throwHammer, spawnThrow, detonate, get turrets() { return turrets; }, get bubbles() { return bubbles; } };
+  return { PROJ, FX, projMesh, fire, dmgMul, rhythm, rateMul, shove, airMul, preMove, dashVel, postMove, tick, steer, stillTick, onSpawnProj, onRemoteProj, beamFx, spawnEffect, update, hitMeshes, isTurretId, hitTurret, blastTurrets, onMsg, clear, warmObjects, drawRadar, botMayFire, botThreat, titanFx, titanHud, swingCenter, titanPose, resetArms, onRemoteTitan, onBoom, throwHammer, spawnThrow, detonate, get turrets() { return turrets; }, get bubbles() { return bubbles; } };
 })();
 
 </script>
@@ -8518,7 +8554,7 @@ const SaveXfer = (() => {
 //  Browsers may serve a cached older page for a while (GitHub Pages: 10 min), and mismatched versions can't
 //  play together, so the game polls version.json and offers a cache-busting reload when a newer build is out.
 // =====================================================================
-const BUILD_ID = 'c103556808';
+const BUILD_ID = 'a607d383c7';
 const UpdateCheck = (() => {
   let shown = false;
   async function check() {
@@ -9749,7 +9785,7 @@ function buildAvatar(p) {
   const sub = (p.team >= 0 && teamGame() ? (Party.on() ? Party.teamName(p.team) : TEAM_NAMES[p.team]) + ' · ' : '') + (p.bot ? 'BOT' : (p.pr ? '★' + p.pr + ' ' : '') + 'LV ' + p.lvl + ' · ' + titleFor(p.lvl));
   const tag = makeTag(p.name, p.color, sub);
   tag.position.y = 2.3; root.add(tag);
-  return { root, upper, neck, aim, legL, legR, kneeL, kneeR, accent, muzzle, gunPivot, guns, glint, tag, outlineMat, outlines, hit: [torso, head, lL, lR, sL, sR], k: 0, lean: 0, side: 0 };
+  return { root, upper, neck, aim, legL, legR, kneeL, kneeR, accent, muzzle, gunPivot, guns, glint, tag, outlineMat, outlines, arms: [armA, armB], hit: [torso, head, lL, lR, sL, sR], k: 0, lean: 0, side: 0 };
 }
 // ---------------- CLARITY: health bars over heads ----------------
 // Drawn as a flat 2D overlay (canvas in the HUD) projected above each head: always fully visible (the old 3D sprites
@@ -12420,7 +12456,7 @@ function poseAvatar(p, dt) {
   av.aim.rotation.x = p.pitch - av.lean;
   av.neck.rotation.x = p.pitch * 0.6 - av.lean * 0.8;
   av.guns.forEach((g, i) => g.visible = i === p.weapon);
-  if (p.weapon === W_TITAN) Arms.titanPose(p, av, dt);   // HAMMERFALL: eased per-move animation (spins, Thor overhead, smash)
+  if (p.weapon === W_TITAN) Arms.titanPose(p, av, dt); else if (av.armMod) Arms.resetArms(av);   // HAMMERFALL: eased per-move animation (spins, Thor overhead, smash)
   av.muzzle.position.copy(avMuzzle(p.weapon));
   const glint = p !== me && p.alive && isSniper(p.weapon) && p.adsK > 0.5;
   av.glint.visible = glint;
