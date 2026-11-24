@@ -1044,6 +1044,7 @@ const Profile = loadStore('slidefire_profile', {
 });
 // patch 4 moved the GRENADE / VOID telemetry slots from weapon ids 20/21 to 32/33 (new guns took 20-31)
 if (!Profile.wv4) { const wd = Profile.wdata || {}; const g = wd[20], v = wd[21]; delete wd[20]; delete wd[21]; if (g) wd[32] = g; if (v) wd[33] = v; for (const k of ['20', '21']) { if (Profile.wkills) delete Profile.wkills[k]; if (Profile.mastery) delete Profile.mastery[k]; } Profile.wv4 = 1; }
+if (!Profile.wv5) { const wd = Profile.wdata || {}; const g = wd[32], v = wd[33]; delete wd[32]; delete wd[33]; if (g) wd[33] = g; if (v) wd[34] = v; Profile.wv5 = 1; }   // patch 5: TITAN took id 32
 const saveSettings = () => saveStore('slidefire_settings', Settings);
 const saveProfile = () => saveStore('slidefire_profile', Profile);
 
@@ -2820,7 +2821,36 @@ const World = (() => {
       },
     },
   ];
-  const ALL = MAPS.concat(BREACH_MAPS);
+  // ---------- mode-only maps (kept out of MAPS so rotation / votes / trials ignore them) ----------
+  const pv = dy => Math.sqrt(2 * 24 * (Math.max(0, dy) + 3.5));
+  const MODE_MAPS = [{
+    id: 'crucible', name: 'THE CRUCIBLE', desc: 'HAMMERFALL arena: floating platforms over the void. Knock them off.', modeOnly: 'hammer', fixed: true,
+    theme: MAPS[1].theme, killY: -25, hills: [[0, 0.5, 0, 4]], power: null, shadowExt: 60,
+    build() {
+      // big main platform with 0.9 m lips: you can't walk or slide off, but a hammer hit launches you over them
+      block(0, 0, 40, 40, -2, 0, 'floor');
+      block(0, 0, 8, 8, 0, 0.5, 'plat');                                         // centre dais
+      for (const sx of [-1, 1]) for (const sz of [-1, 1]) block(sx * 10, sz * 10, 1.8, 1.8, 0, 3.4, 'tower');   // four pillars to dodge around
+      const LIP = 0.9;
+      for (const s of [-1, 1]) {
+        block(s * 19.6, 0, 0.8, 40, 0, LIP, 'plat');                             // east / west lips (closed: pads jump you over)
+        block(-11, s * 19.6, 18, 0.8, 0, LIP, 'plat'); block(11, s * 19.6, 18, 0.8, 0, LIP, 'plat');   // north / south lips, 4 m gap for the bridges
+      }
+      for (const [x, z] of [[34, 0], [-34, 0], [0, 34], [0, -34]]) {             // four side islands
+        block(x, z, 14, 14, -2, 0.5, 'floor');
+        const ox = Math.sign(x), oz = Math.sign(z);                               // lip on the outer side (away from the centre)
+        if (ox) block(x + ox * 6.6, z, 0.8, 14, 0.5, 0.5 + LIP, 'plat'); else block(x, z + oz * 6.6, 14, 0.8, 0.5, 0.5 + LIP, 'plat');
+        block(x + (z ? 3 : 0), z + (x ? 3 : 0), 1.8, 1.8, 0.5, 2.2, 'crate');
+      }
+      for (const s of [-1, 1]) block(0, s * 23.5, 4, 7.4, -0.8, 0.25, 'plat');    // wide bridges north / south
+      for (const s of [-1, 1]) {                                                 // pads east / west, out and back
+        jumpPad(s * 14, 0, 0, pv(0.5), [s * 33, 0.5, 0]);
+        jumpPad(s * 29.5, 0, 0.5, pv(0), [s * 8, 0, 0]);
+      }
+      for (const q of [[34, 0.6, 0], [-34, 0.6, 0], [0, 0.6, 34], [0, 0.6, -34], [7, 0.1, 7], [-7, 0.1, -7], [7, 0.1, -7], [-7, 0.1, 7]]) spawns.push(V(q[0], q[1], q[2]));
+    },
+  }];
+  const ALL = MAPS.concat(BREACH_MAPS, MODE_MAPS);
   // ---------- CUSTOM MAP (map editor, src/editor.js): one slot at the end of ALL, rebuilt from plain data ----------
   // data: { name, theme: index of the map whose sky + materials it borrows, b: [[x, z, w, d, y0, y1, mat]],
   //         p: [[x, z, y, tx, ty, tz]] jump pads, s: [[x, y, z]] spawns, pw: [x, y, z] | null, h: [[x, y, z, r]], ky }
@@ -2930,7 +2960,7 @@ const World = (() => {
   }
   function load(i, k = 1) {
     i = ((i | 0) % ALL.length + ALL.length) % ALL.length;
-    k = ALL[i].breachOnly || ALL[i].fixed ? 1 : Math.min(1.3, Math.max(1, +k || 1));   // breach + custom maps are already full-size
+    k = ALL[i].breachOnly || ALL[i].fixed || ALL[i].modeOnly ? 1 : Math.min(1.3, Math.max(1, +k || 1));   // breach + custom maps are already full-size
     if (i === current && k === scaleK) return ALL[i];
     clearMap();
     const M = ALL[i];
@@ -2969,7 +2999,7 @@ const World = (() => {
 
   return {
     scene, colliders, rayMeshes, pads, spawns, MAPS, load, update, setFx, setShadowSize,
-    ALL, BREACH_START: MAPS.length, BREACH_COUNT: BREACH_MAPS.length, CUSTOM, setCustom, cleanCustom, get custom() { return CUSTOM_DEF.data; }, CMATS,
+    ALL, BREACH_START: MAPS.length, BREACH_COUNT: BREACH_MAPS.length, HAMMER_MAP: MAPS.length + BREACH_MAPS.length, CUSTOM, setCustom, cleanCustom, get custom() { return CUSTOM_DEF.data; }, CMATS,
     rebuild() { if (current >= 0) { const i = current, k = scaleK; current = -1; return load(i, k); } },
     mapDef: i => ALL[i] || MAPS[0],
     get breach() { return current >= 0 && ALL[current].breach || null; },
@@ -2996,7 +3026,7 @@ const Relay = (() => {
     'wss://test.mosquitto.org:8081/mqtt',
     'wss://broker.emqx.io:8084/mqtt',      // slower, last resort
   ];
-  const NS = 'slidefire-arena-v12-relay-7q2k/';
+  const NS = 'slidefire-arena-v13-relay-7q2k/';
   const FLUSH_MS = 45, KEEPALIVE_MS = 2000, TIMEOUT_MS = 10000;
   const te = new TextEncoder(), td = new TextDecoder();
 
@@ -4106,6 +4136,8 @@ const Arms = (() => {
     turret: { lob: true, speed: 16, impact: true, effect: 'turret', splash: 0, dmg: 0, fuse: 6, self: 0, knock: 0, knockSelf: 0, color: 0x50ff9a },
     strike: { still: true, life: 1.5, splash: 5.5, dmg: 150, self: 0.5, knock: 9, knockSelf: 9, color: 0xff3030, beam: true },
     slam: { splash: 6, dmg: 75, self: 0, knock: 16, knockSelf: 0, lift: 2.2, color: 0x6a8cff },
+    tslam: { splash: 5.5, dmg: 110, self: 0, knock: 17, knockSelf: 0, lift: 2.0, color: 0xffb020 },   // HAMMERFALL air slam
+    tdash: { splash: 3.8, dmg: 105, self: 0, knock: 15, knockSelf: 0, lift: 1.5, color: 0xffb020 },   // HAMMERFALL slam-dash landing
   };
   const FX = ['stasis', 'turret'];
   const STASIS = { r: 6.5, life: 3.5, cap: 3.5, capY: 2.5 };
@@ -4178,6 +4210,7 @@ const Arms = (() => {
   // returns true when this weapon's shot was fully handled here
   function fire(p, w, o, d, flags, muzzle) {
     if (w.det) { const mine = myPipes(p); if (mine.length >= 3) mine[0].life = 0; return false; }   // PIPER: max 3 out, the oldest goes off
+    if (w.titan) return titanFire(p, w, o, d);
     if (w.slam) {   // GRAVITY MAUL: in the air and looking down = SLAM, otherwise a normal swing (game.js melee path)
       if (p.onGround || p.pitch > -0.45 || heightAboveGround(p) < 1.4) return false;
       p.slam = true; p.slamT = time;
@@ -4253,7 +4286,7 @@ const Arms = (() => {
   function shove(v, info) {
     const a = players.get(info.a); if (!a) return;
     _a.set(v.pos.x - a.pos.x, 0, v.pos.z - a.pos.z); if (_a.lengthSq() < 1e-4) _a.set(0, 0, 1); _a.normalize();
-    v.vel.addScaledVector(_a, info.kb); v.vel.y = Math.max(v.vel.y, 1.6); v.onGround = false; v.sliding = false;
+    v.vel.addScaledVector(_a, info.kb); v.vel.y = Math.max(v.vel.y, Number.isFinite(info.kbUp) ? info.kbUp : 1.6); v.onGround = false; v.sliding = false;
   }
   // ANVIL: airborne targets take x1.7 (the shooter checks the ground under the target)
   function airMul(r, vid) {
@@ -4279,7 +4312,10 @@ const Arms = (() => {
   }
   function postMove(p, prev) {
     if (prev && p.dashEnd) { p.vel.multiplyScalar(0.3); p.dashEnd = false; }
-    if (prev && p.dashHit) {   // PHASE SCYTHE: everyone the dash passed through (1.3 m wide), once per dash
+    if (prev && p.dashKind === 'titan') {   // HAMMERFALL slam-dash: stop early at the first enemy in front, then slam
+      for (const q of players.values()) { if (!q.alive || q === p || allies(p, q)) continue; if (q.pos.distanceTo(p.pos) < 1.5) { p.dashT = 0; p.dashEnd = true; break; } }
+      if (p.dashEnd || p.dashT <= 0) { p.dashKind = null; p.vel.multiplyScalar(0.25); titanBoom(p, 'tdash', p.pos.clone().addScaledVector(p.dashDir, 1.4).add(V3(0, 0.9, 0)));   /* centred at body height in front: dead-on = kill */ }
+    } else if (prev && p.dashHit) {   // PHASE SCYTHE: everyone the dash passed through (1.3 m wide), once per dash
       const W = WEAPONS[W_SCYTHE];
       for (const q of players.values()) {
         if (!q.alive || q === p || allies(p, q) || p.dashHit.has(q.id)) continue;
@@ -4293,8 +4329,8 @@ const Arms = (() => {
     if (p.slam && (p.onGround || time - p.slamT > 3)) {   // GRAVITY MAUL: the slam lands
       p.slam = false;
       if (p.onGround) {
-        const m = { t: 'x', k: 'slam', w: W_MAUL, id: p.id, rid: p.id + '_s' + (seq++), p: arr(p.pos.clone().add(_b.set(0, 0.4, 0))) };
-        explode(m); send(m);
+        if (WEAPONS[p.weapon] && WEAPONS[p.weapon].titan) titanBoom(p, 'tslam', p.pos.clone().add(_b.set(0, 0.4, 0)));
+        else { const m = { t: 'x', k: 'slam', w: W_MAUL, id: p.id, rid: p.id + '_s' + (seq++), p: arr(p.pos.clone().add(_b.set(0, 0.4, 0))) }; explode(m); send(m); }
         if (p === me) shakeAmt += 0.9;
       }
     }
@@ -4302,6 +4338,11 @@ const Arms = (() => {
   // per-frame weapon extras for owned players (alt = the right mouse button is down)
   function tick(p, dt, alt) {
     const w = WEAPONS[p.weapon];
+    if (w && w.titan) {
+      if (p.bot) alt = botWantsDash(p);
+      if (alt && !p.altLock) { p.altLock = true; titanDash(p); }
+      if (!alt) p.altLock = false;
+    }
     if (w && w.det) {
       if (alt && !p.altLock) { p.altLock = true; detonate(p); }
       if (!alt) p.altLock = false;
@@ -4380,6 +4421,7 @@ const Arms = (() => {
   }
   const tMuzzle = t => t.head.localToWorld(V3(0, -0.05, -0.62));
   function update(dt) {
+    aimPreview();
     for (let i = bubbles.length - 1; i >= 0; i--) {
       const b = bubbles[i]; b.life -= dt;
       const grow = clamp((STASIS.life - b.life) / 0.25, 0, 1), fade = clamp(b.life / 0.4, 0, 1);
@@ -4483,9 +4525,107 @@ const Arms = (() => {
     }
     return null;
   }
+
+  // =================== HAMMERFALL: the TITAN HAMMER ===================
+  const TITAN = { reach: 2.7, R: 2.4, sweet: 0.5, max: 100, edge: 25, dashLen: 9, dashT: 0.2, dashCD: 2.5 };
+  // where a swing lands: in front of you at chest height, pulled in by walls
+  function swingCenter(p, out) {
+    const pitch = clamp(p.pitch, -0.55, 0.35), yaw = p.yaw;
+    const d = _c.set(-Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), -Math.cos(yaw) * Math.cos(pitch));
+    const o = _a.set(p.pos.x, p.pos.y + 1.15, p.pos.z);
+    ray.set(o, d); ray.far = TITAN.reach;
+    const h = ray.intersectObjects(World.rayMeshes, false)[0];
+    return out.copy(o).addScaledVector(d, h ? Math.max(0.6, h.distance - 0.2) : TITAN.reach);
+  }
+  function titanFire(p, w, o, d) {
+    // look down in the air = AIR SLAM (dive + shockwave)
+    if (!p.onGround && p.pitch < -0.45 && heightAboveGround(p) > 1.4) {
+      p.slam = true; p.slamT = time; p.vel.set(p.vel.x * 0.3, -36, p.vel.z * 0.3);
+      if (p === me) { SFX.play('maul'); shakeAmt += 0.2; }
+      send({ t: 'f', id: p.id, w: p.weapon, e: [] });
+      return true;
+    }
+    const C = swingCenter(p, V3());
+    let sweetHit = false;
+    for (const q of players.values()) {
+      if (!q.alive || q === p || allies(p, q)) continue;
+      const c = chestPos(q, V3()), dist = c.distanceTo(C);
+      if (dist > TITAN.R + 0.35 || !hasLOS(_b.set(p.pos.x, p.pos.y + 1.15, p.pos.z), c)) continue;
+      const sweet = dist <= TITAN.sweet;
+      const f = clamp((dist - TITAN.sweet) / (TITAN.R - TITAN.sweet), 0, 1);
+      const dmg = sweet ? TITAN.max : Math.round(lerp(85, TITAN.edge, f));   // dead-centre kills, off-centre 85 -> 25
+      dealDamage(p, q.id, dmg, { w: W_TITAN, h: false, c: false, air: !p.onGround, dist: r2(p.pos.distanceTo(q.pos)), kb: sweet ? 15 : lerp(12, 6, f), kbUp: sweet ? 8 : lerp(6.5, 4, f), sw: sweet ? 1 : 0 }, c);
+      if (sweet) sweetHit = true;
+    }
+    if (sweetHit && p === me) { showHitmarker('crit kill', 0.4); SFX.play('crit'); shakeAmt += 0.25; }
+    titanFx(C, sweetHit);
+    send({ t: 'f', id: p.id, w: p.weapon, e: [arr(C), sweetHit ? 1 : 0] });
+    return true;   // handled here (fire() then just runs the swing animation + sound)
+  }
+  // a slam / dash landing: blast through the normal explosion path (every client applies it to the players it owns)
+  function titanBoom(p, k, at) {
+    const m = { t: 'x', k, w: W_TITAN, id: p.id, rid: p.id + '_t' + (seq++), p: arr(at) };
+    explode(m); send(m);
+    if (p === me) shakeAmt += 0.7;
+    titanFx(at, false, k === 'tslam' ? 5.5 : 3.8);
+  }
+  function titanDash(p) {
+    if (!p.alive || p.dashT > 0 || time < (p.tdashCD || 0) || p.slam) return;
+    p.tdashCD = time + TITAN.dashCD;
+    const yaw = p.yaw;
+    p.dashDir = V3(-Math.sin(yaw), 0, -Math.cos(yaw)); p.dashT = TITAN.dashT; p.dashV = TITAN.dashLen / TITAN.dashT; p.dashKind = 'titan'; p.dashHit = null;
+    if (p === me) { SFX.play('scythe', 0.8); shakeAmt += 0.15; }
+    send({ t: 'f', id: p.id, w: p.weapon, e: [] });
+  }
+  // bots: slam-dash at someone 4-9 m ahead
+  function botWantsDash(b) {
+    if (time < (b.tdashCD || 0) || b.dashT > 0) return false;
+    const fx = -Math.sin(b.yaw), fz = -Math.cos(b.yaw);
+    for (const q of players.values()) {
+      if (!q.alive || q === b || allies(b, q)) continue;
+      const dx = q.pos.x - b.pos.x, dz = q.pos.z - b.pos.z, d = Math.hypot(dx, dz);
+      if (d > 4 && d < 9 && (dx * fx + dz * fz) / d > 0.92 && Math.abs(q.pos.y - b.pos.y) < 1.5) {
+        const land = V3(b.pos.x + fx * 9.5, b.pos.y + 1, b.pos.z + fz * 9.5);   /* never dash off the edge */
+        if (groundBelow(land, 4).y < b.pos.y - 2.5) return false;
+        return Math.random() < 0.08;
+      }
+    }
+    return false;
+  }
+  // impact ring (every client: own swings and the 'f' messages of others)
+  function titanFx(C, sweet, R0) {
+    const R = R0 || TITAN.R;
+    for (let i = 0; i < 22; i++) { const a = i / 22 * Math.PI * 2; spawnParticle(V3(C.x + Math.cos(a) * R * 0.5, C.y, C.z + Math.sin(a) * R * 0.5), V3(Math.cos(a) * R * 3, rand(0.5, 2), Math.sin(a) * R * 3), sweet ? 0xff5030 : 0xffb020, 0.12, 0.35, 4, true); }
+    if (sweet) for (let i = 0; i < 10; i++) spawnParticle(C.clone(), V3(rand(-4, 4), rand(1, 6), rand(-4, 4)), 0xffffff, 0.09, 0.3, 8, true);
+    play3D('maul', C, 0.9);
+    if (me && C.distanceTo(me.pos) < 6) shakeAmt += 0.12;
+  }
+  // HUD: slam-dash readiness where the ammo counter goes
+  function titanHud(p) {
+    const left = (p.tdashCD || 0) - time;
+    return left > 0 ? '<small style="font-size:13px">DASH</small> ' + left.toFixed(1) + '<small>s</small>' : '<span style="color:#ffb020">DASH</span><small> RMB</small>';
+  }
+  // aim preview: a ring on the ground where your swing lands, with the kill zone marked (you, in HAMMERFALL)
+  let aimG = null;
+  function aimPreview() {
+    const on = me && me.alive && R.tp && WEAPONS[me.weapon] && WEAPONS[me.weapon].titan && mode === 'game';
+    if (!aimG) {
+      if (!on) return;
+      aimG = new THREE.Group();
+      const ring = new THREE.Mesh(new THREE.RingGeometry(TITAN.R - 0.08, TITAN.R, 48).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.35, depthWrite: false }));
+      const sweet = new THREE.Mesh(new THREE.CircleGeometry(TITAN.sweet, 24).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xff4020, transparent: true, opacity: 0.55, depthWrite: false }));
+      const mid = new THREE.Mesh(new THREE.RingGeometry(TITAN.R * 0.55 - 0.05, TITAN.R * 0.55, 40).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xffb020, transparent: true, opacity: 0.3, depthWrite: false }));
+      aimG.add(ring, sweet, mid); aimG.renderOrder = 3; scene.add(aimG);
+    }
+    aimG.visible = !!on; if (!on) return;
+    const C = swingCenter(me, V3()), gnd = groundBelow(C, 6);
+    aimG.position.set(C.x, gnd.y + 0.06, C.z);
+    const ready = me.fireCD <= 0;
+    aimG.children[0].material.opacity = ready ? 0.45 : 0.15; aimG.children[1].material.opacity = ready ? 0.6 : 0.2;
+  }
   // bots: where the scythe makes sense, and which power weapons want close range
   const botMayFire = (b, w, dist) => !(w.dash && dist > w.dash - 1) && !(w.strike && dist < 7) && !(w.proj === 'turret' && dist > 30);
-  return { PROJ, FX, projMesh, fire, dmgMul, rhythm, rateMul, shove, airMul, preMove, dashVel, postMove, tick, steer, stillTick, onSpawnProj, onRemoteProj, beamFx, spawnEffect, update, hitMeshes, isTurretId, hitTurret, blastTurrets, onMsg, clear, warmObjects, drawRadar, botMayFire, botThreat, detonate, get turrets() { return turrets; }, get bubbles() { return bubbles; } };
+  return { PROJ, FX, projMesh, fire, dmgMul, rhythm, rateMul, shove, airMul, preMove, dashVel, postMove, tick, steer, stillTick, onSpawnProj, onRemoteProj, beamFx, spawnEffect, update, hitMeshes, isTurretId, hitTurret, blastTurrets, onMsg, clear, warmObjects, drawRadar, botMayFire, botThreat, titanFx, titanHud, swingCenter, detonate, get turrets() { return turrets; }, get bubbles() { return bubbles; } };
 })();
 
 </script>
@@ -6954,12 +7094,13 @@ function botInput(b, dt) {
       const closeGun = [W_SCATTER, 1, W_PISTOL, W_VULTURE, W_STINGER, W_SCORCH, W_FANG, W_PINBALL, W_MAULER, W_GEMINI], longGun = [W_SNIPER, W_KESTREL, 0, W_XBOW, W_TRIDENT, W_ANVIL, W_SURGE];
       let want = dist < 10 ? (closeGun.includes(a) ? a : c) : dist > 30 ? (longGun.includes(a) ? a : c === W_ROCKET ? a : c) : (Math.random() < 0.6 ? a : c);
       if (b.loadout.includes(W_BLADE)) want = dist < 4 ? W_BLADE : b.loadout.find(x => x !== W_BLADE);   // knife only up close
+      if (b.loadout.includes(W_TITAN)) want = W_TITAN;   // HAMMERFALL: never put the hammer away
       if (WEAPONS[want] && WEAPONS[want].flame && dist > 9) want = want === a ? c : a;   // a flamethrower is useless at range
       switchWeapon(b, want);
     }
     if (isSniper(b.weapon)) { b.ads = true; b.adsK = 1; }
     const yerr = Math.abs(((wantYaw - b.yaw + Math.PI * 3) % (Math.PI * 2)) - Math.PI);
-    if (ai.react <= 0 && yerr < (isSniper(b.weapon) ? 0.03 : D.cone) && (!WEAPONS[b.weapon].melee || dist < WEAPONS[b.weapon].range) && Arms.botMayFire(b, WEAPONS[b.weapon], dist)) inp.fire = true;
+    if (ai.react <= 0 && yerr < (isSniper(b.weapon) ? 0.03 : D.cone) && (!WEAPONS[b.weapon].melee || dist < (WEAPONS[b.weapon].titan ? 4.4 : WEAPONS[b.weapon].range)) && Arms.botMayFire(b, WEAPONS[b.weapon], dist)) inp.fire = true;
     ai.nadeT -= dt;
     if (ai.nadeT <= 0 && dist > 8 && dist < 24) { ai.nadeT = rand(D.nade[0], D.nade[1]) * ST.nade; const pp = b.pitch; b.pitch = wantPitch + 0.25; throwNade(b); b.pitch = pp; }
     inp.f = dist > ST.keep[1] ? 1 : dist < ST.keep[0] ? -1 : 0;     // each personality fights at its own range
@@ -7135,11 +7276,11 @@ const Mut = (() => {
   }
   function onKill(k) { if (on('vampire') && k && owns(k) && k.alive) k.hp = Math.min(Math.round(R.hp * 1.5), k.hp + 60); }
   function loadout(p) {
-    if (!on('knives')) return;
+    if (!on('knives') || (R && R.tp)) return;   // HAMMERFALL keeps its hammer
     p.loadout = [W_BLADE]; p.weapon = W_BLADE; p.lastWeapon = W_BLADE;
   }
   function onSpawn(p) {
-    if (!on('arsenal') || !owns(p) || on('knives') || match.mode === 'breach' || match.mode === 'trials') return;
+    if (!on('arsenal') || !owns(p) || on('knives') || match.mode === 'breach' || match.mode === 'trials' || (R && R.tp)) return;
     const w = POWER_POOL[Math.floor(Math.random() * POWER_POOL.length)];
     Extras.give(p, w);
     if (p === me) setTimeout(() => toast('ARSENAL', WEAPONS[w].name), 300);
@@ -7979,6 +8120,7 @@ const MenuUI = (() => {
     infect: { i: '☣', g: 'party', s: 'Survive the spreading infection', t: ['PARTY', 'ROUNDS'] },
     jugg: { i: '♜', g: 'party', s: 'Everyone vs one giant: kill it to become it', t: ['PARTY'] },
     hide: { i: '▣', g: 'party', s: 'Hide as a prop, seekers hunt you', t: ['PARTY', 'ROUNDS'] },
+    hammer: { i: '🔨', g: 'twists', s: 'Third-person titan hammers, ring-outs', t: ['FFA', '3RD PERSON'] },
     horde: { i: '⛨', g: 'coop', s: 'Hold off endless waves together', t: ['CO-OP'] },
     breach: { i: '◆', g: 'comp', s: 'Plant or defuse, buy gear, one life', t: ['TEAMS', '3v3 / 5v5'] },
   };
@@ -7986,7 +8128,7 @@ const MenuUI = (() => {
   const TABS = ['play', 'loadout', 'look', 'progress', 'cases', 'settings'];
   let bound = false;
   const cur = () => Settings.mode === 'playlist' ? 'playlist' : (MODES[Settings.mode] ? Settings.mode : 'ffa');
-  const TAGTIP = { FFA: 'Free-for-all: everyone fights everyone', TEAMS: 'Two teams: red vs blue', ROUNDS: 'Played in rounds: you stay dead until the next round', OBJECTIVE: 'Score by holding an area, not only by killing', PARTY: 'Party mode: special roles that change each round', 'CO-OP': 'Everyone on the same side against bots', 'PICK WEAPON': 'The host picks the weapon in MATCH RULES', MIXED: 'Changes every match', '3v3 / 5v5': 'Team size set in MATCH RULES' };
+  const TAGTIP = { FFA: 'Free-for-all: everyone fights everyone', TEAMS: 'Two teams: red vs blue', ROUNDS: 'Played in rounds: you stay dead until the next round', OBJECTIVE: 'Score by holding an area, not only by killing', PARTY: 'Party mode: special roles that change each round', 'CO-OP': 'Everyone on the same side against bots', 'PICK WEAPON': 'The host picks the weapon in MATCH RULES', MIXED: 'Changes every match', '3v3 / 5v5': 'Team size set in MATCH RULES', '3RD PERSON': 'Played with an over-the-shoulder camera' };
   const tagHtml = t => `<em data-tip="${TAGTIP[t] || t}">${t}</em>`;
   const card = (k, name, m, wide) => `<button class="mcard${cur() === k ? ' sel' : ''}${wide ? ' wide' : ''}" data-mode="${k}"><span class="mi">${m.i}</span><span class="mt"><b>${name}</b><small>${m.s}</small></span><span class="mtags">${m.t.map(tagHtml).join('')}</span></button>`;
   function renderModes() {
@@ -8200,7 +8342,7 @@ const SaveXfer = (() => {
 //  Browsers may serve a cached older page for a while (GitHub Pages: 10 min), and mismatched versions can't
 //  play together, so the game polls version.json and offers a cache-busting reload when a newer build is out.
 // =====================================================================
-const BUILD_ID = '1d1c742260';
+const BUILD_ID = '0d66d6abaf';
 const UpdateCheck = (() => {
   let shown = false;
   async function check() {
@@ -8460,6 +8602,7 @@ function handleMsg(m) {
     case 'f': {
       const p = players.get(m.id); if (!p || owns(p)) return; p.loudT = time;
       const mz = muzzlePos(p), w = WEAPONS[m.w] || WEAPONS[0];
+      if (w.titan) { p.firedT = time; if (m.e && m.e[0]) Arms.titanFx(V3().fromArray(m.e[0]), m.e[1] ? 1 : 0); play3D(w.sound, mz, 0.9); break; }   // HAMMERFALL impact ring
       p.firedT = time;
       if (m.e[0] && !w.flame) play3D('impactWorld', V3().fromArray(m.e[0]), 0.35);
       if (m.fl) flameFx(mz, aimDir(p, V3()), p.vel);
@@ -8629,7 +8772,7 @@ function startSession(n, myId, welcome, opts) {
     Elim.onWelcome(welcome.el); Party.onWelcome(welcome.pt); if (match.mode === 'breach') Breach.onWelcome(welcome.br);
     match.restartAt = time + 10;
   } else {
-    M = loadMap(match.mode === 'breach' ? World.BREACH_START : opts && opts.map !== undefined ? opts.map : Settings.map, mapScaleFor(plannedPlayers()));
+    M = loadMap(forcedMap(match.mode) !== null ? forcedMap(match.mode) : opts && opts.map !== undefined ? opts.map : Settings.map, mapScaleFor(plannedPlayers()));
     setGG(shuffleGG());
     me = addPlayer({ id: myId, name: Settings.name, ci: Settings.color, team: teamGame() || match.mode === 'horde' ? 0 : -1, lvl: Profile.level, skin: Settings.skin, knife: knifeOf(Settings.knife), knifeSkin: Settings.knifeSkin | 0, card: Prog.myCard(), pr: Profile.prestige | 0, suit: Settings.suit | 0 }, true);
     R = buildRules(match.mode); Mut.reset();
@@ -8735,7 +8878,7 @@ function startNewMatch() {
   }
   startNewMatch2(mm, teams);
 }
-function startNewMatch2(mm, teams) { R = buildRules(match.mode); const voted = Meta.winner(); const m = { t: 'start', sc: mapScaleFor(plannedPlayers()), rules: R, dur: matchDur(), map: match.mode === 'breach' ? World.BREACH_START : match.playlist ? match.next : voted !== null ? voted : match.next === undefined ? match.map : match.next, gg: shuffleGG(), mode: mm || undefined, teams: teams || undefined, pl: match.playlist ? 1 : 0 }; if (m.map === World.CUSTOM) m.cm = World.custom; send(m); resetMatch(m); }
+function startNewMatch2(mm, teams) { R = buildRules(match.mode); const voted = Meta.winner(); const m = { t: 'start', sc: mapScaleFor(plannedPlayers()), rules: R, dur: matchDur(), map: forcedMap(match.mode) !== null ? forcedMap(match.mode) : match.playlist ? match.next : voted !== null ? voted : match.next === undefined ? match.map : match.next, gg: shuffleGG(), mode: mm || undefined, teams: teams || undefined, pl: match.playlist ? 1 : 0 }; if (m.map === World.CUSTOM) m.cm = World.custom; send(m); resetMatch(m); }
 
 
 </script>
@@ -8765,7 +8908,7 @@ const BOT_DIFF = {
 const botDiff = () => match.mode === 'horde' ? Prog.adaptiveDiff(760 + Horde.wave * 45) : Settings.botDiff === 'adaptive' ? Prog.adaptiveDiff() : BOT_DIFF[Settings.botDiff] || BOT_DIFF.normal;
 const NET_DT = 1 / 30;   // state send rate on direct P2P links (30 Hz); the MQTT relay stays at 20 Hz (netDt)
 const netDt = () => (net && net.relay ? 1 / 20 : NET_DT);   // match length / respawn delay come from the match rules (R)
-const NET_PREFIX = 'slidefire-arena-v12-';
+const NET_PREFIX = 'slidefire-arena-v13-';
 
 // ---------------- weapons ----------------
 const WEAPONS = [
@@ -8825,11 +8968,13 @@ const WEAPONS = [
   { key: 'stasis', name: 'STASIS', short: 'STASIS', desc: 'Power weapon: a bubble that slows enemies inside to a crawl', pickup: '2 BUBBLES · ENEMIES ONLY · NO DAMAGE', power: true, proj: 'stasis', rate: 1.0, mag: 2, reload: 99, zoom: 0.9, adsTime: 0.12, recoil: 0.03, shake: 0.12, sound: 'stasis', tracerColor: 0x7fe8ff, flash: 0x9ff0ff, gunLen: 0.9 },
   { key: 'locust', name: 'LOCUST', short: 'LOCUST', desc: 'Power weapon: a salvo of 6 homing micro-missiles shared among enemies near your aim', pickup: '3 SALVOS · AIM NEAR ENEMIES', power: true, proj: 'locust', salvo: 6, rate: 0.9, dmg: 22, mag: 3, reload: 99, zoom: 0.85, adsTime: 0.14, recoil: 0.04, shake: 0.16, sound: 'locust', tracerColor: 0xffa030, flash: 0xffb050, gunLen: 1.1 },
   { key: 'sentinel', name: 'SENTINEL', short: 'SENTRY', desc: 'Power weapon: throw a turret that guns down enemies it can see', pickup: '1 TURRET · 18 S · IT CAN BE SHOT DOWN', power: true, proj: 'turret', rate: 0.6, mag: 1, reload: 99, zoom: 1, adsTime: 0.1, recoil: 0, shake: 0.05, sound: 'throw', tracerColor: 0x50ff9a, flash: 0x50ff9a, gunLen: 0.8 },
+  // ---- HAMMERFALL: the TITAN HAMMER (mode weapon). Area swing: dead-centre 100, off-centre 85 -> 25 at the edge; RMB slam-dash; air slam ----
+  { key: 'titan', name: 'TITAN HAMMER', short: 'TITAN', desc: 'Hammerfall: a giant hammer. Centre hits kill, edges bruise, everything flies', special: 'Swing hits an AREA in front of you: dead-centre kills, the edge only bruises. RMB slam-dashes forward. Look down mid-air to slam.', melee: true, titan: true, rate: 0.8, dmg: 100, mag: 1, reload: 0.1, range: 5, spread: 0, moveSpread: 0, adsMul: 1, zoom: 1, adsTime: 0.1, pellets: 1, recoil: 0, shake: 0.3, sound: 'maul', tracerColor: 0xffb020, flash: 0xffb020, moveMul: 1.1, gunLen: 1.3 },
 ];
 const W_SCATTER = 2, W_SNIPER = 3, W_ROCKET = 4, W_PISTOL = 5, W_VULTURE = 6, W_TRIDENT = 7, W_HAVOC = 8, W_STINGER = 9, W_RAIL = 10, W_HAIL = 11, W_ARC = 12, W_SING = 13, W_XBOW = 14, W_PINBALL = 15, W_SCORCH = 16, W_FANG = 17, W_KESTREL = 18, W_BLADE = 19,
   W_SURGE = 20, W_LUMEN = 21, W_ANVIL = 22, W_MAULER = 23, W_PIPER = 24, W_GEMINI = 25,
-  W_MAUL = 26, W_ORBITAL = 27, W_SCYTHE = 28, W_STASIS = 29, W_LOCUST = 30, W_SENTINEL = 31, W_NADE = 32, W_VOID = 33;
-const WNAMES = ['RIFLE', 'SMG', 'SCATTER', 'SNIPER', 'ROCKET', 'PISTOL', 'VULTURE', 'TRIDENT', 'HAVOC', 'STINGER', 'RAILGUN', 'HAILSTORM', 'ARC CASTER', 'SINGULARITY', 'WARDEN XBOW', 'HORNET', 'SCORCH', 'TWIN FANG', 'KESTREL', 'BLADE', 'SURGE', 'LUMEN', 'ANVIL', 'MAULER', 'PIPER', 'GEMINI', 'GRAVITY MAUL', 'ORBITAL LANCE', 'PHASE SCYTHE', 'STASIS', 'LOCUST', 'SENTINEL', 'GRENADE', 'VOID'];
+  W_MAUL = 26, W_ORBITAL = 27, W_SCYTHE = 28, W_STASIS = 29, W_LOCUST = 30, W_SENTINEL = 31, W_TITAN = 32, W_NADE = 33, W_VOID = 34;
+const WNAMES = ['RIFLE', 'SMG', 'SCATTER', 'SNIPER', 'ROCKET', 'PISTOL', 'VULTURE', 'TRIDENT', 'HAVOC', 'STINGER', 'RAILGUN', 'HAILSTORM', 'ARC CASTER', 'SINGULARITY', 'WARDEN XBOW', 'HORNET', 'SCORCH', 'TWIN FANG', 'KESTREL', 'BLADE', 'SURGE', 'LUMEN', 'ANVIL', 'MAULER', 'PIPER', 'GEMINI', 'GRAVITY MAUL', 'ORBITAL LANCE', 'PHASE SCYTHE', 'STASIS', 'LOCUST', 'SENTINEL', 'TITAN HAMMER', 'GRENADE', 'VOID'];
 const POWER_POOL = [W_RAIL, W_HAIL, W_ARC, W_SING, W_MAUL, W_ORBITAL, W_SCYTHE, W_STASIS, W_LOCUST, W_SENTINEL];   // map pickups rotate through these
 const PRIMARIES = [0, 1, 2, 3, 18, 7, 8, 14, 15, 16, 20, 21, 22, 23], SECONDARIES = [5, 9, 6, 17, 4, 2, 24, 25];
 const ROCKET = { speed: 36, splash: 4.6, dmg: 110, self: 0.3, knockSelf: 13.5, knock: 11 };
@@ -8850,7 +8995,7 @@ const NADE_SPEED = 19, NADE_MAX = 2, NADE_RECHARGE = 8;
 const NEEDLE = { speed: 85, dmg: 10, head: 1.6, bolt: true, needle: true, home: 18, cone: 0.32, lock: 20 };   // lock: homing fades out with distance from the shooter (full to 11 m, none past 20 m)
 const projParams = m => Arms.PROJ[m.k] || (m.k === 'nade' ? (NADES[m.nt] || NADES.frag) : m.k === 'sing' ? SING : m.k === 'bolt' ? BOLT : m.k === 'needle' ? NEEDLE : ROCKET);
 // ADS position per weapon: the holo sight's centre lines up with the screen centre
-const ADS_POS = [[0, -0.17, -0.56], [0, -0.155, -0.55], [0, -0.18, -0.62], [0, -0.12, -0.4], [0.24, -0.22, -0.55], [0, -0.13, -0.46], [0, -0.145, -0.47], [0, -0.16, -0.55], [0, -0.17, -0.6], [0, -0.115, -0.42], [0, -0.15, -0.55], [0, -0.17, -0.6], [0, -0.15, -0.52], [0.24, -0.22, -0.55], [0, -0.14, -0.5], [0, -0.155, -0.5], [0.16, -0.2, -0.55], [0, -0.13, -0.42], [0, -0.12, -0.42], [0.25, -0.25, -0.5], [0, -0.16, -0.55], [0, -0.155, -0.55], [0, -0.15, -0.58], [0, -0.17, -0.6], [0.24, -0.22, -0.55], [0, -0.13, -0.46], [0.25, -0.25, -0.5], [0, -0.14, -0.5], [0.25, -0.25, -0.5], [0.24, -0.22, -0.55], [0.24, -0.22, -0.55], [0.25, -0.25, -0.5]];
+const ADS_POS = [[0, -0.17, -0.56], [0, -0.155, -0.55], [0, -0.18, -0.62], [0, -0.12, -0.4], [0.24, -0.22, -0.55], [0, -0.13, -0.46], [0, -0.145, -0.47], [0, -0.16, -0.55], [0, -0.17, -0.6], [0, -0.115, -0.42], [0, -0.15, -0.55], [0, -0.17, -0.6], [0, -0.15, -0.52], [0.24, -0.22, -0.55], [0, -0.14, -0.5], [0, -0.155, -0.5], [0.16, -0.2, -0.55], [0, -0.13, -0.42], [0, -0.12, -0.42], [0.25, -0.25, -0.5], [0, -0.16, -0.55], [0, -0.155, -0.55], [0, -0.15, -0.58], [0, -0.17, -0.6], [0.24, -0.22, -0.55], [0, -0.13, -0.46], [0.25, -0.25, -0.5], [0, -0.14, -0.5], [0.25, -0.25, -0.5], [0.24, -0.22, -0.55], [0.24, -0.22, -0.55], [0.25, -0.25, -0.5], [0.25, -0.25, -0.5]];
 
 // ---------------- modes ----------------
 // gun game: the host shuffles the order every match (pistol always stays the final weapon)
@@ -8881,11 +9026,12 @@ const MODES = {
   infect: { name: 'INFECTION', voice: 'infection', desc: 'Party: one player starts INFECTED (knife, fast, one-stab kills). Killed survivors join them. Survive the timer to score. {n} rounds.', limit: 4, teams: true, party: true, noClock: true, power: false },
   jugg: { name: 'JUGGERNAUT', voice: 'juggernaut', desc: 'Party: everyone vs one giant LMG Juggernaut. Kill it to become it. First to {n} points.', limit: 15, teams: true, party: true, power: false },
   hide: { name: 'HIDE & SEEK', voice: 'hide and seek', desc: 'Party: hiders turn into props and hide while the seekers are blind. Found hiders become seekers. Misses cost seekers HP. {n} rounds.', limit: 4, teams: true, party: true, noClock: true, power: false, noNades: true },
+  hammer: { name: 'HAMMERFALL', desc: 'Third-person hammer brawl: everyone swings a TITAN HAMMER. Dead-centre hits kill, edges bruise. RMB slam-dashes, double jump in the air. Knock enemies off the floating arena. First to {n}.', limit: 15, loadout: [W_TITAN], infinite: true, noNades: true, power: false, tp: true, djump: true, air: 1.5 },
   instagib: { name: 'INSTAGIB', voice: 'instagib', desc: 'Everyone gets an infinite railgun. One hit kills. First to {n}.', limit: 20, loadout: [W_RAIL], igPick: true, infinite: true, noNades: true, power: false },
 };
 // ---------------- match rules: chosen by the host in the lobby, sent to everyone with each match ----------------
-const LIMIT_RANGE = { ffa: [5, 50, 5], tdm: [10, 100, 5], gun: [1, 3, 1], koth: [20, 200, 10], roulette: [5, 50, 5], snipers: [5, 50, 5], rockets: [5, 50, 5], instagib: [5, 50, 5], trials: [1, 1, 1], horde: [1, 10, 1], elim: [2, 10, 1], scouts: [5, 50, 5], breach: [3, 13, 1], infect: [1, 10, 1], jugg: [5, 50, 5], hide: [1, 10, 1] };
-const LIMIT_LABEL = { ffa: 'Kills to win', tdm: 'Team kills to win', gun: 'Kills per weapon', koth: 'Hill points to win', roulette: 'Kills to win', snipers: 'Kills to win', rockets: 'Kills to win', instagib: 'Kills to win', trials: '', horde: 'Team lives', elim: 'Rounds to win', scouts: 'Kills to win', breach: 'Rounds to win', infect: 'Rounds', jugg: 'Points to win', hide: 'Rounds' };
+const LIMIT_RANGE = { ffa: [5, 50, 5], tdm: [10, 100, 5], gun: [1, 3, 1], koth: [20, 200, 10], roulette: [5, 50, 5], snipers: [5, 50, 5], rockets: [5, 50, 5], instagib: [5, 50, 5], hammer: [5, 50, 5], trials: [1, 1, 1], horde: [1, 10, 1], elim: [2, 10, 1], scouts: [5, 50, 5], breach: [3, 13, 1], infect: [1, 10, 1], jugg: [5, 50, 5], hide: [1, 10, 1] };
+const LIMIT_LABEL = { ffa: 'Kills to win', tdm: 'Team kills to win', gun: 'Kills per weapon', koth: 'Hill points to win', roulette: 'Kills to win', snipers: 'Kills to win', rockets: 'Kills to win', hammer: 'Kills to win', instagib: 'Kills to win', trials: '', horde: 'Team lives', elim: 'Rounds to win', scouts: 'Kills to win', breach: 'Rounds to win', infect: 'Rounds', jugg: 'Points to win', hide: 'Rounds' };
 const RULE_DEFAULTS = { limits: {}, time: 6, hp: 100, respawn: 2.5, grav: 'mode', ammo: false, nades: true, power: true, regen: true, mut: [], igw: 'railgun', igOne: true };
 // INSTAGIB: the host picks which power weapon everyone gets (key from POWER_POOL; 'random' = a new one every match)
 const IG_POOL = POWER_POOL.filter(w => w !== W_STASIS);   // stasis does no damage: not a mode on its own
@@ -8908,7 +9054,7 @@ function buildRules(mode, S = ruleSettings()) {
     grav: S.grav in GRAV_OPTS ? GRAV_OPTS[S.grav] : (Md.grav || 1), gravKey: S.grav in GRAV_OPTS ? S.grav : 'mode',
     infinite: !!(Md.infinite || S.ammo), noNades: !!(Md.noNades || S.nades === false || knives),
     power: Md.power !== false && S.power !== false && !knives && !Md.party, regen: !Md.noRegen && S.regen !== false,
-    air: Md.air || 1, nospread: !!Md.nospread, mut, ig,
+    air: Md.air || 1, nospread: !!Md.nospread, mut, ig, tp: !!Md.tp, djump: !!Md.djump,
   };
 }
 // rules arriving over the network are already effective values: re-validate them field by field
@@ -8921,17 +9067,19 @@ function sanitizeRules(r, mode) {
     grav: clamp(+r.grav || 1, 0.3, 2), gravKey: String(r.gravKey || 'mode').slice(0, 8),
     infinite: !!r.infinite, noNades: !!r.noNades, power: !!r.power, regen: r.regen !== false,
     air: clamp(+r.air || 1, 1, 4), nospread: !!r.nospread, mut: Mut.clean(r.mut),
-    ig: Md.igPick ? (IG_POOL.includes(+r.ig) ? +r.ig : W_RAIL) : -1,
+    ig: Md.igPick ? (IG_POOL.includes(+r.ig) ? +r.ig : W_RAIL) : -1, tp: !!Md.tp, djump: !!Md.djump,
   };
 }
 let R = buildRules('ffa');
 // ---------------- PLAYLIST: a random mode + fitting map every match (no menus between games) ----------------
-const PLAYLIST_MODES = ['ffa', 'tdm', 'gun', 'koth', 'snipers', 'rockets', 'roulette', 'elim', 'scouts', 'instagib', 'breach', 'infect', 'jugg', 'hide'];
+const PLAYLIST_MODES = ['ffa', 'tdm', 'gun', 'koth', 'snipers', 'rockets', 'roulette', 'elim', 'scouts', 'instagib', 'breach', 'infect', 'jugg', 'hide', 'hammer'];
 const playlistOn = () => Settings.mode === 'playlist';
+// modes that always play on their own map
+const forcedMap = m => m === 'breach' ? World.BREACH_START : m === 'hammer' ? World.HAMMER_MAP : null;
 function pickPlaylist(prevMode, prevMap) {
   const modes = PLAYLIST_MODES.filter(m => m !== prevMode);
   const mode = modes[Math.floor(Math.random() * modes.length)];
-  if (mode === 'breach') return { mode, map: World.BREACH_START };
+  if (forcedMap(mode) !== null) return { mode, map: forcedMap(mode) };
   const n = World.MAPS.length; let map;
   do { map = Math.floor(Math.random() * n); } while (n > 1 && map === prevMap);
   return { mode, map };
@@ -9403,6 +9551,7 @@ function buildAvatar(p) {
     if (i === W_BLADE) parts = avKnifeParts(p.knife);
     const g = new THREE.Group();
     for (const { geo, kind, mat } of parts) { const o = new THREE.Mesh(geo, kind === 'body' ? gunMat : kind === 'dark' ? AV_DARK : kind === 'metal' ? AV_METAL : kind === 'kblade' ? (SkinTex.gunMat(p.knifeSkin | 0) || AV_METAL) : kind === 'accent' ? accent : mat); o.castShadow = true; g.add(o); }
+    if (i === W_TITAN) g.scale.setScalar(2.8);   // HAMMERFALL: the hammer is huge
     g.visible = i === 0; gunPivot.add(g); return g;
   });
   const muzzle = new THREE.Object3D(); muzzle.position.set(0, 0, -0.75); gunPivot.add(muzzle);
@@ -9661,7 +9810,7 @@ function simulate(p, inp, dt) {
   p.height = p.crouch ? H_CROUCH : H_STAND;
 
   if (p.onGround) {
-    p.wallRunning = false; p.wallRunT = 0; p.lastWallKey = null;
+    p.wallRunning = false; p.wallRunT = 0; p.lastWallKey = null; p.djUsed = false;
     if (inp.jump) {
       const perfect = p.groundT < BHOP_GRACE && hs > RUN * 0.9;
       p.bhopChain = perfect ? p.bhopChain + 1 : 0;
@@ -9687,6 +9836,10 @@ function simulate(p, inp, dt) {
       }
     }
   } else {
+    if (R.djump && inp.jumpPress && !p.djUsed && !p.wallRunning && time - (p.wallT || -9) > 0.15) {   // HAMMERFALL: one double jump per air time
+      p.djUsed = true; p.vel.y = Math.max(p.vel.y, JUMP_V * 0.95); jumped = true; onJump(p, false);
+      if (p === me) SFX.play('hop', 0.7);
+    }
     // ---------- ledge climb: jumping toward a ledge you can reach pulls you up onto it ----------
     if (inp.f > 0 && p.vel.y < 4 && p.mantleCD <= 0 && !p.wallRunning) {
       const fx = -sy, fz = -cy;
@@ -11352,14 +11505,24 @@ const vmAccent = new THREE.MeshStandardMaterial({ color: 0x00e5ff, emissive: 0x0
   B(tn, .14, .1, .14, body, 0, 0, -.12); B(tn, .142, .012, .142, vmAccent, 0, .02, -.12); B(tn, .06, .05, .12, dark, 0, .07, -.12);
   C(tn, .012, .012, .12, metal, 0, .07, -.22); B(tn, .03, .03, .03, vmAccent, 0, .07, -.07); B(tn, .03, .08, .03, dark, 0, -.08, -.06);
   tn.position.set(.02, -.03, .02); tn.userData.muzzle = V3(0, .07, -.28);
-  for (const g of [rifle, smg, sc, sn, rk, ps, vu, tr, hv, st, rg, hl, ac, sgl, xb, pb, fl, tf, ks, kn, su, lm, an, ma, pi, gm, mu, ob, sy, sx, lc, tn]) { g.visible = false; vm.root.add(g); vm.guns.push(g); }
+  // TITAN HAMMER: long banded haft, huge forged head with glowing core and spiked faces
+  const th = new THREE.Group();
+  C(th, .028, .028, .8, dark, 0, 0, -.18);
+  for (let i = 0; i < 5; i++) C(th, .034, .034, .025, i % 2 ? metal : vmAccent, 0, 0, .15 - i * .07);
+  { const hd = SUB(th, 0, 0, -.62); B(hd, .34, .2, .2, body, 0, 0, 0); B(hd, .344, .03, .204, vmAccent, 0, .065, 0); B(hd, .344, .03, .204, vmAccent, 0, -.065, 0);
+    B(hd, .08, .24, .24, metal, .2, 0, 0); B(hd, .08, .24, .24, metal, -.2, 0, 0);
+    for (const sx of [-1, 1]) for (const y of [-.07, .07]) for (const z of [-.07, .07]) B(hd, .05, .04, .04, metal, sx * .26, y, z);
+    const core = new THREE.Mesh(new THREE.SphereGeometry(.05, 12, 8), vmAccent); core.position.set(0, 0, -.105); hd.add(core); }
+  th.rotation.set(.35, -.1, -.25); th.position.set(.03, -.05, .05);
+  th.userData.muzzle = V3(0, 0, -.62);
+  for (const g of [rifle, smg, sc, sn, rk, ps, vu, tr, hv, st, rg, hl, ac, sgl, xb, pb, fl, tf, ks, kn, su, lm, an, ma, pi, gm, mu, ob, sy, sx, lc, tn, th]) { g.visible = false; vm.root.add(g); vm.guns.push(g); }
   const fc = document.createElement('canvas'); fc.width = fc.height = 64; const fg = fc.getContext('2d');
   const grd = fg.createRadialGradient(32, 32, 0, 32, 32, 32); grd.addColorStop(0, 'rgba(255,255,220,1)'); grd.addColorStop(0.3, 'rgba(255,190,80,0.9)'); grd.addColorStop(1, 'rgba(255,100,0,0)');
   fg.fillStyle = grd; fg.fillRect(0, 0, 64, 64);
   vm.flash = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(fc), blending: THREE.AdditiveBlending, depthWrite: false, transparent: true }));
   vm.flash.visible = false; vm.root.add(vm.flash);
   // each gun gets its own paint job so they read differently at a glance
-  const PAINT = [0x1a2440, 0x163020, 0x3a1a14, 0x3a3222, 0x2a3018, 0x26262e, 0x141210, 0x0e2c36, 0x3a220c, 0x2c1238, 0x0a1c2c, 0x2a2010, 0x1a0e30, 0x12061e, 0x1e2a12, 0x2a1030, 0x2a1a10, 0x2c2418, 0x1e2e3a, 0x161616, 0x0c2a34, 0x2a0c18, 0x2e2418, 0x22201c, 0x2c1c0e, 0x1c1c26, 0x141c34, 0x200c0c, 0x1a0c2e, 0x0c2830, 0x2c1e0a, 0x0e2a1a];
+  const PAINT = [0x1a2440, 0x163020, 0x3a1a14, 0x3a3222, 0x2a3018, 0x26262e, 0x141210, 0x0e2c36, 0x3a220c, 0x2c1238, 0x0a1c2c, 0x2a2010, 0x1a0e30, 0x12061e, 0x1e2a12, 0x2a1030, 0x2a1a10, 0x2c2418, 0x1e2e3a, 0x161616, 0x0c2a34, 0x2a0c18, 0x2e2418, 0x22201c, 0x2c1c0e, 0x1c1c26, 0x141c34, 0x200c0c, 0x1a0c2e, 0x0c2830, 0x2c1e0a, 0x0e2a1a, 0x2a1a08];
   vm.paints = []; vm.paintColors = PAINT;
   vm.guns.forEach((g, i) => { const m = body.clone(); m.color.setHex(PAINT[i] || 0x141724); g.traverse(o => { if (o.material === body) o.material = m; }); vm.paints.push(m); });
   vmScene.add(vm.root);
@@ -11427,7 +11590,7 @@ function updateViewmodel(dt) {
   vm.arcOrb.scale.setScalar(0.8 + Math.random() * 0.5);
   vm.xbowBolt.visible = me.ammo[W_XBOW] > 0 && me.reloadT <= 0;
   vm.pilot.scale.setScalar(0.8 + Math.random() * 0.4);
-  vm.root.visible = me.alive && match.state !== 'ended' && !scoped;
+  vm.root.visible = me.alive && match.state !== 'ended' && !scoped && !R.tp;
   const hs = Math.hypot(me.vel.x, me.vel.z);
   vm.kick = Math.max(0, vm.kick - dt * 9);
   if (me.recoilBack) { const b = me.recoilBack * (1 - Math.exp(-9 * dt)); me.pitch -= b; me.recoilBack -= b; if (Math.abs(me.recoilBack) < 1e-4) me.recoilBack = 0; }
@@ -11682,7 +11845,7 @@ function updateHUD(dt) {
   setStyle(hud.hpbar, 'width', Math.min(100, hp / R.hp * 100).toFixed(1) + '%');
   hud.hpwrap.classList.toggle('low', hp < 35);
   setText(hud.wname, w.name + (me.overdrive > 0 ? ' <span style="color:#ff8a00">⚡</span>' : ''));
-  setText(hud.ammo, w.melee ? '∞' : me.ammo[me.weapon] + '<small> / ' + w.mag + '</small>');
+  setText(hud.ammo, w.titan ? Arms.titanHud(me) : w.melee ? '∞' : me.ammo[me.weapon] + '<small> / ' + w.mag + '</small>');
   setStyle(hud.reload, 'width', me.reloadT > 0 ? ((1 - me.reloadT / (me.reloadMax || 1)) * 100).toFixed(0) + '%' : '0%');
   {
     const rk = me.reloadT > 0 && me.alive ? 1 - me.reloadT / (me.reloadMax || 1) : -1, low = me.alive && !w.melee ? lowAmmoK(me, w) : 0;
@@ -12035,7 +12198,8 @@ function poseAvatar(p, dt) {
   trackMovement(p, dt);
   const av = p.av;
   // self-heal: outside a replay, a living player is always visible (and a dead one never is)
-  if (!Meta.killcamActive) av.root.visible = p.alive && p !== me && !Spec.firstPersonOn(p);   // first-person spectating: hide the body we're looking out of
+  if (!Meta.killcamActive) av.root.visible = p.alive && (p !== me || R.tp) && !Spec.firstPersonOn(p);
+  if (p === me && R.tp) av.tag.visible = false;   // first-person spectating: hide the body we're looking out of
   const hsc = Mut.headScale(); if (av.neck.scale.x !== hsc) av.neck.scale.setScalar(hsc);   // BIG HEADS (the head hitbox grows with it)
   const mv = Math.hypot(p.pos.x - p.lastPos.x, p.pos.z - p.lastPos.z) / Math.max(dt, 1e-3);
   p.lastPos.copy(p.pos);
@@ -12076,6 +12240,10 @@ function poseAvatar(p, dt) {
   av.aim.rotation.x = p.pitch - av.lean;
   av.neck.rotation.x = p.pitch * 0.6 - av.lean * 0.8;
   av.guns.forEach((g, i) => g.visible = i === p.weapon);
+  if (p.weapon === W_TITAN) {   // HAMMERFALL: hammer held raised over the shoulder; a swing winds up, then smashes down (readable from afar)
+    const k = clamp((time - (p.firedT || -9)) / 0.55, 0, 1);
+    av.guns[W_TITAN].rotation.x = k >= 1 ? 0.8 : k < 0.25 ? lerp(0.8, 1.55, k / 0.25) : k < 0.55 ? lerp(1.55, -0.85, (k - 0.25) / 0.3) : lerp(-0.85, 0.8, (k - 0.55) / 0.45);
+  }
   av.muzzle.position.copy(avMuzzle(p.weapon));
   const glint = p !== me && p.alive && isSniper(p.weapon) && p.adsK > 0.5;
   av.glint.visible = glint;
@@ -12103,6 +12271,21 @@ function poseAvatar(p, dt) {
     }
   }
 }
+// HAMMERFALL third-person camera: over the right shoulder, pulled in when a wall is behind you.
+// It keeps the aim rotation, so the crosshair still points along your aim.
+const _tpRay = new THREE.Raycaster(), _tpF = V3(), _tpR = V3();
+let tpDist = 4.2;
+function tpCamera(dt) {
+  camera.updateMatrixWorld();
+  _tpF.set(0, 0, -1).applyQuaternion(camera.quaternion); _tpR.set(1, 0, 0).applyQuaternion(camera.quaternion);
+  const pivot = camera.position.clone().addScaledVector(_tpR, 0.6).add(V3(0, 0.45, 0));
+  const back = _tpF.clone().negate();
+  _tpRay.set(pivot, back); _tpRay.far = 4.4;
+  const hit = _tpRay.intersectObjects(World.rayMeshes, false)[0];
+  const want = hit ? Math.max(0.8, hit.distance - 0.35) : 4.2;
+  tpDist = want < tpDist ? want : lerp(tpDist, want, 1 - Math.exp(-5 * dt));
+  camera.position.copy(pivot).addScaledVector(back, tpDist);
+}
 function updateCamera(dt) {
   const hs = Math.hypot(me.vel.x, me.vel.z);
   if (me.alive) {
@@ -12120,6 +12303,7 @@ function updateCamera(dt) {
     shakeAmt = Math.min(shakeAmt, 1.2) * Math.exp(-7 * dt);
     const sh = (shakeAmt * shakeAmt * 0.08 + concFlash * 0.01) * (Settings.shake ?? 1);
     camera.rotation.set(me.pitch + rand(-sh, sh), me.yaw + rand(-sh, sh), camRoll + rand(-sh, sh) * 0.5 + Math.sin(time * 3) * concFlash * 0.06);
+    if (R.tp) tpCamera(dt);
   } else if (!Spec.drive(dt)) {
     deathCamPos.y = lerp(deathCamPos.y, Math.max(me.pos.y, World.killY + 6) + 4, 1 - Math.exp(-1.5 * dt));
     camera.position.lerp(deathCamPos, 1 - Math.exp(-4 * dt));
@@ -12136,7 +12320,7 @@ function updateCamera(dt) {
 }
 function updateAds(dt) {
   const w = WEAPONS[me.weapon];
-  const want = (rmbDown && locked || Pad.on && Pad.state.ads) && !w.det && me.alive && me.reloadT <= 0 && me.switchT <= 0 && match.state === 'playing';
+  const want = (rmbDown && locked || Pad.on && Pad.state.ads) && !w.det && !w.titan && me.alive && me.reloadT <= 0 && me.switchT <= 0 && match.state === 'playing';
   const wasScoped = isScoped(me);
   me.ads = want;
   me.adsK = clamp(me.adsK + (want ? 1 : -1.6) * dt / w.adsTime, 0, 1);
@@ -12419,10 +12603,10 @@ function renderRulesUI() {
   const custom = rulesNotes(mode, r).filter(n => !/MIN|LIMIT/.test(n)).length > 0;
   $('rulesSum').textContent = (mode === 'gun' ? r.limit + ' per weapon' : r.limit + ' to win') + ' · ' + (r.time ? r.time + ' min' : 'no time limit') + (custom ? ' · custom' : '');
   renderModeOptions();
-  const br = mode === 'breach', pl = Settings.mode === 'playlist';
+  const br = mode === 'breach' || mode === 'hammer', pl = Settings.mode === 'playlist';
   $('teamSizeRow').style.display = br || pl ? '' : 'none';
   $('teamSizeSel').value = String(Settings.teamSize === 3 ? 3 : 5);
-  $('mapSel').disabled = br || pl; $('mapSel').title = br ? 'BREACH always plays on MERIDIAN' : pl ? 'The playlist picks a random map every match' : '';
+  $('mapSel').disabled = br || pl; $('mapSel').title = br ? (mode === 'hammer' ? 'HAMMERFALL always plays in THE CRUCIBLE' : 'BREACH always plays on MERIDIAN') : pl ? 'The playlist picks a random map every match' : '';
   if (pl) $('rulesSum').textContent = 'Playlist: each mode uses its own default target · ' + (r.time ? r.time + ' min' : 'no time limit');
   MenuUI.refresh();
 }
