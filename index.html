@@ -1440,6 +1440,8 @@ const SFX = (() => {
     hSweet: { bus: 'gun', rev: 0.55, l: [{ n: 1, ft: 'highpass', f: 2200, dur: 0.035, g: 1.3, a: 0.0004 }, { type: 'sine', f: 85, f2: 26, dur: 0.75, g: 2.0, sweep: 0.1 }, { s: 'boom', g: 0.9, rate: 0.75 }, { n: 1, ft: 'bandpass', f: 700, f2: 160, q: 0.8, dur: 0.35, g: 1.3 }, ...bell(1500, 0.1, 0.6), { type: 'square', f: 90, f2: 40, dur: 0.2, g: 0.25 }] },
     hUpper: { bus: 'gun', rev: 0.35, l: [{ n: 1, ft: 'bandpass', f: 300, f2: 2800, q: 1.3, dur: 0.28, g: 0.8 }, { type: 'sine', f: 90, f2: 260, dur: 0.22, g: 0.9, sweep: 0.2 }, { n: 1, ft: 'highpass', f: 2600, dur: 0.03, g: 0.7, delay: 0.12 }, { type: 'sine', f: 140, f2: 50, dur: 0.25, g: 1.0, delay: 0.12 }] },
     hWhirl: { bus: 'gun', rev: 0.3, l: [{ n: 1, ft: 'bandpass', f: 500, f2: 1600, q: 1.5, dur: 0.16, g: 0.7 }, { n: 1, ft: 'bandpass', f: 600, f2: 1800, q: 1.5, dur: 0.16, g: 0.7, delay: 0.13 }, { n: 1, ft: 'bandpass', f: 700, f2: 2000, q: 1.5, dur: 0.18, g: 0.75, delay: 0.26 }, { type: 'sine', f: 110, f2: 60, dur: 0.3, g: 0.6 }] },
+    hCharge: { bus: 'gun', rev: 0.3, l: [{ type: 'sawtooth', f: 55, f2: 140, dur: 0.32, g: 0.22 }, { type: 'sine', f: 300, f2: 1200, dur: 0.3, g: 0.18, sweep: 0.3 }, { n: 1, ft: 'bandpass', f: 250, f2: 1800, q: 3, dur: 0.32, g: 0.45 }] },
+    hApex: { bus: 'gun', rev: 0.6, l: [{ n: 1, ft: 'bandpass', f: 1400, f2: 500, q: 1.2, dur: 0.6, g: 0.35 }, { type: 'sine', f: 880, f2: 660, dur: 0.5, g: 0.1 }] },
     hLeap: { bus: 'gun', rev: 0.45, l: [{ type: 'sine', f: 60, f2: 30, dur: 0.35, g: 1.4 }, { n: 1, ft: 'lowpass', f: 1200, f2: 300, dur: 0.3, g: 0.9 }, { type: 'sine', f: 220, f2: 900, dur: 0.45, g: 0.25, sweep: 0.4 }, { n: 1, ft: 'bandpass', f: 400, f2: 2200, q: 1, dur: 0.5, g: 0.5 }] },
     hDive: { bus: 'gun', rev: 0.4, l: [{ type: 'sine', f: 1900, f2: 380, dur: 0.55, g: 0.22, sweep: 0.5 }, { n: 1, ft: 'bandpass', f: 2400, f2: 600, q: 2, dur: 0.5, g: 0.5 }] },
     hLand: { bus: 'gun', rev: 0.7, l: [{ n: 1, ft: 'highpass', f: 1800, dur: 0.04, g: 1.4, a: 0.0004 }, { type: 'sine', f: 62, f2: 20, dur: 1.0, g: 2.4, sweep: 0.12 }, { s: 'boom', g: 1.1, rate: 0.62 }, { s: 'boom', g: 0.6, rate: 0.9, delay: 0.05 }, { n: 1, ft: 'lowpass', f: 900, f2: 120, dur: 0.9, g: 1.1, a: 0.01 }, { type: 'square', f: 70, f2: 30, dur: 0.3, g: 0.3 }, { n: 1, ft: 'bandpass', f: 3000, q: 3, dur: 0.03, g: 0.3, delay: 0.25 }, { n: 1, ft: 'bandpass', f: 2600, q: 3, dur: 0.03, g: 0.25, delay: 0.38 }, { n: 1, ft: 'bandpass', f: 3400, q: 3, dur: 0.03, g: 0.2, delay: 0.5 }] },
@@ -3039,7 +3041,7 @@ const Relay = (() => {
     'wss://test.mosquitto.org:8081/mqtt',
     'wss://broker.emqx.io:8084/mqtt',      // slower, last resort
   ];
-  const NS = 'slidefire-arena-v13-relay-7q2k/';
+  const NS = 'slidefire-arena-v14-relay-7q2k/';
   const FLUSH_MS = 45, KEEPALIVE_MS = 2000, TIMEOUT_MS = 10000;
   const te = new TextEncoder(), td = new TextDecoder();
 
@@ -4150,7 +4152,7 @@ const Arms = (() => {
     strike: { still: true, life: 1.5, splash: 5.5, dmg: 150, self: 0.5, knock: 9, knockSelf: 9, color: 0xff3030, beam: true },
     slam: { splash: 6, dmg: 75, self: 0, knock: 16, knockSelf: 0, lift: 2.2, color: 0x6a8cff },
     tslam: { splash: 5.5, dmg: 110, self: 0, knock: 17, knockSelf: 0, lift: 2.0, color: 0xffb020 },   // HAMMERFALL air slam
-    tdash: { splash: 4.5, dmg: 105, self: 0, knock: 16, knockSelf: 0, lift: 1.7, color: 0xffb020 },   // HAMMERFALL leap-slam landing
+    tdash: { splash: 5.5, dmg: 110, self: 0, knock: 18, knockSelf: 0, lift: 2.2, color: 0xffb020 },   // HAMMERFALL leap-slam landing
   };
   const FX = ['stasis', 'turret'];
   const STASIS = { r: 6.5, life: 3.5, cap: 3.5, capY: 2.5 };
@@ -4310,6 +4312,7 @@ const Arms = (() => {
 
   // ---------------- movement hooks (owned players) ----------------
   function preMove(p, dt) {
+    if (p.leap) return leapStep(p, dt);
     if (p.dashT > 0) {
       const prev = p.pos.clone();
       p.dashEnd = p.dashT - dt <= 0;
@@ -4319,6 +4322,7 @@ const Arms = (() => {
     return null;
   }
   function dashVel(p) {
+    if (p.leapV) { p.vel.copy(p.leapV); p.sliding = false; return; }   /* HAMMERFALL leap: follow the scripted arc */
     p.vel.copy(p.dashDir).multiplyScalar(p.dashV);
     if (p.onGround && p.vel.y < 0) p.vel.y = 0;   // along the floor: stay grounded (the floor collider would block an "airborne" body)
     p.sliding = false;
@@ -4339,10 +4343,10 @@ const Arms = (() => {
         for (let k = 0; k < 10; k++) spawnParticle(c, V3(rand(-4, 4), rand(0, 4), rand(-4, 4)), 0x9a6bff, 0.08, 0.35, 6, true);
       }
     }
-    if (p.slam && (p.onGround || time - p.slamT > 3)) {   // GRAVITY MAUL: the slam lands
-      p.slam = false; p.slamDone = p.slamKind; p.slamKind = null;
+    if (p.slam && !(p.leap && !p.leap.down) && (p.onGround || time - p.slamT > 3)) {   // GRAVITY MAUL: the slam lands
+      p.slam = false; p.leap = null; p.leapV = null; p.slamDone = p.slamKind; p.slamKind = null;
       if (p.onGround) {
-        if (WEAPONS[p.weapon] && WEAPONS[p.weapon].titan) { titanBoom(p, p.slamDone === 'leap' ? 'tdash' : 'tslam', p.pos.clone().add(_b.set(0, p.slamDone === 'leap' ? 0.9 : 0.6, 0))); p.vel.x *= 0.1; p.vel.z *= 0.1; }   /* the impact stops you dead */
+        if (WEAPONS[p.weapon] && WEAPONS[p.weapon].titan) { titanBoom(p, p.slamDone === 'leap' ? 'tdash' : 'tslam', p.pos.clone().add(_b.set(0, p.slamDone === 'leap' ? 0.9 : 0.6, 0))); p.vel.x *= 0.1; p.vel.z *= 0.1; if (p.slamDone === 'leap') p.vel.y = 0; }   /* the impact stops you dead */
         else { const m = { t: 'x', k: 'slam', w: W_MAUL, id: p.id, rid: p.id + '_s' + (seq++), p: arr(p.pos.clone().add(_b.set(0, 0.4, 0))) }; explode(m); send(m); }
         if (p === me) shakeAmt += 0.9;
       }
@@ -4351,7 +4355,7 @@ const Arms = (() => {
   // per-frame weapon extras for owned players (alt = the right mouse button is down)
   function tick(p, dt, alt) {
     const w = WEAPONS[p.weapon];
-    if (p.slam && p.slamKind === 'leap' && p.vel.y < 0) p.vel.y -= 26 * dt;   // LEAP: drop like a rock after the apex
+    if (p.slam && p.slamKind === 'leap' && !p.leap && p.vel.y < 0) p.vel.y -= 26 * dt;   // LEAP: drop like a rock after the apex
     if (w && w.titan) {
       if (p.bot) alt = botWantsDash(p);
       if (alt && !p.altLock) { p.altLock = true; titanDash(p); }
@@ -4435,7 +4439,7 @@ const Arms = (() => {
   }
   const tMuzzle = t => t.head.localToWorld(V3(0, -0.05, -0.62));
   function update(dt) {
-    aimPreview(); updateThrows(dt); updateWaves(dt);
+    aimPreview(); updateThrows(dt); updateWaves(dt); updateMarks(dt);
     for (let i = bubbles.length - 1; i >= 0; i--) {
       const b = bubbles[i]; b.life -= dt;
       const grow = clamp((STASIS.life - b.life) / 0.25, 0, 1), fade = clamp(b.life / 0.4, 0, 1);
@@ -4520,6 +4524,7 @@ const Arms = (() => {
     turrets.length = bubbles.length = 0;
     while (throws.length) endThrow(throws.length - 1, false);
     for (const w of waves) scene.remove(w.m); waves.length = 0;
+    for (const m of marks) scene.remove(m.g); marks.length = 0;
   }
   function warmObjects() {
     const ring = projMesh({ k: 'strike' }, PROJ.strike);
@@ -4546,9 +4551,12 @@ const Arms = (() => {
   // Moves: SWING (ground) · UPPERCUT (look up) · WHIRLWIND (any swing in the air) · THOR DIVE (look down in the air)
   //        LEAP SLAM (RMB: spin up, hammer overhead, crash down where you aim) · THROW (G: flies out, comes back)
   // Every move has its own eased animation (titanPose), trail, impact effects and sound.
-  const TITAN = { reach: 2.7, R: 2.4, sweet: 0.5, leapCD: 2.5, throwCD: 4 };
+  const TITAN = { reach: 2.7, R: 2.4, sweet: 0.5, leapCD: 4.5, throwCD: 4 };
+  // LEAP SLAM timeline (seconds): crouch + charge, rocket up (easing off toward the top), hang with the hammer overhead, crash down
+  const LEAP = { crouch: 0.28, rise: 0.85, hang: 0.5, slam: 0.32, H: 10, min: 4, max: 18 };
+  const LT1 = LEAP.crouch, LT2 = LT1 + LEAP.rise, LT3 = LT2 + LEAP.hang, LT4 = LT3 + LEAP.slam;
   const ease = { out: k => 1 - Math.pow(1 - clamp(k, 0, 1), 3), inOut: k => { k = clamp(k, 0, 1); return k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2; } };
-  function setAnim(p, k) { p.tAnim = k; p.tAnimT = time; }
+  function setAnim(p, k) { p.tAnim = k; p.tAnimT = time; p.leapFx = 0; }
   // where a ground swing lands: in front of you at chest height, pulled in by walls
   function swingCenter(p, out, ahead = TITAN.reach, lo = -0.55, hi = 0.35) {
     const pitch = clamp(p.pitch, lo, hi), yaw = p.yaw;
@@ -4575,7 +4583,7 @@ const Arms = (() => {
   }
   const shout = (p, an, C, hit, sweet, R) => send({ t: 'f', id: p.id, w: p.weapon, e: C ? [arr(C), sweet ? 1 : 0, hit ? 1 : 0] : [], an, r: R });
   function titanFire(p, w, o, d) {
-    if (p.hThrown) return true;                                                   // nothing in your hands
+    if (p.hThrown || p.leap) return true;                                                   // nothing in your hands
     const air = !p.onGround;
     if (air && p.pitch < -0.45 && heightAboveGround(p) > 1.4) {                     // THOR DIVE
       p.slam = true; p.slamT = time; p.slamKind = 'dive'; p.vel.set(p.vel.x * 0.3, -38, p.vel.z * 0.3);
@@ -4599,22 +4607,78 @@ const Arms = (() => {
     return true;
   }
   // LEAP SLAM: launch up + toward where you aim, spin, hammer overhead, crash down (landing ON someone kills)
-  function titanDash(p) {
-    if (!p.alive || time < (p.tdashCD || 0) || p.slam || p.hThrown) return;
-    p.tdashCD = time + TITAN.leapCD;
+  // where the leap comes down: where the crosshair meets the ground (4..18 m out), or at the bot's target
+  function leapTarget(p) {
     const fx = -Math.sin(p.yaw), fz = -Math.cos(p.yaw);
-    let dist = 11;                                                                 // how far: where the crosshair meets the ground (4..13 m)
-    if (p.bot && p.ai && p.ai.target && p.ai.target.alive) dist = clamp(Math.hypot(p.ai.target.pos.x - p.pos.x, p.ai.target.pos.z - p.pos.z), 4, 13);
+    let dist = LEAP.max;
+    if (p.bot && p.ai && p.ai.target && p.ai.target.alive) dist = clamp(Math.hypot(p.ai.target.pos.x - p.pos.x, p.ai.target.pos.z - p.pos.z), LEAP.min, LEAP.max);
     else {
-      const pitch = Math.min(p.pitch, -0.05), dd = V3(fx * Math.cos(pitch), Math.sin(pitch), fz * Math.cos(pitch));
-      ray.set(V3(p.pos.x, p.pos.y + 1.6, p.pos.z), dd); ray.far = 16;
+      const pitch = Math.min(p.pitch, -0.03), dd = V3(fx * Math.cos(pitch), Math.sin(pitch), fz * Math.cos(pitch));
+      ray.set(V3(p.pos.x, p.pos.y + 1.6, p.pos.z), dd); ray.far = 26;
       const h = ray.intersectObjects(World.rayMeshes, false)[0];
-      if (h) dist = clamp(Math.hypot(h.point.x - p.pos.x, h.point.z - p.pos.z), 4, 13);
+      if (h) dist = clamp(Math.hypot(h.point.x - p.pos.x, h.point.z - p.pos.z) - (h.face && Math.abs(h.face.normal.y) < 0.5 ? 0.7 : 0), LEAP.min, LEAP.max);   /* a wall: land in front of it */
     }
-    const up = p.onGround ? 12 : 8.5, T = up / 24 + Math.sqrt(2 * (up * up / 48) / 50);   // rise at normal gravity, fall heavy
-    p.vel.set(fx * dist / T, up, fz * dist / T); p.onGround = false; p.sliding = false;
-    p.slam = true; p.slamT = time; p.slamKind = 'leap';
-    setAnim(p, 'leap'); startFx(p, 'leap'); shout(p, 'leap');
+    const X = V3(p.pos.x + fx * dist, p.pos.y + 3, p.pos.z + fz * dist);
+    ray.set(X, _c.set(0, -1, 0)); ray.far = 9;
+    const g = ray.intersectObjects(World.rayMeshes, false)[0];
+    return g ? g.point.clone() : V3(X.x, p.pos.y, X.z);   /* nothing under it: you crash past the edge (your call) */
+  }
+  // the arc at time t: horizontal progress u (0..1) and height y
+  function leapAt(L, t, out) {
+    const S = L.S, E = L.E;
+    let u, y;
+    if (t < LT1) { u = 0; y = S.y; }
+    else if (t < LT2) { const k = (t - LT1) / LEAP.rise; u = 0.52 * (1 - (1 - k) * (1 - k)); y = lerp(S.y, L.A, 1 - Math.pow(1 - k, 3)); }   /* fast off the ground, easing off near the top */
+    else if (t < LT3) { const k = (t - LT2) / LEAP.hang; u = 0.52 + 0.1 * k; y = L.A + 0.45 * Math.sin(Math.PI * k); }                         /* the hang: almost floating */
+    else { const k = Math.min(1, (t - LT3) / LEAP.slam), kk = Math.pow(k, 1.7); u = 0.62 + 0.38 * kk; y = lerp(L.A, E.y, kk); }              /* the crash: a straight, accelerating line down */
+    return out.set(lerp(S.x, E.x, u), y, lerp(S.z, E.z, u));
+  }
+  // owned players: one step of the scripted flight (preMove)
+  function leapStep(p, dt) {
+    const L = p.leap;
+    if (!p.alive) { p.leap = null; p.leapV = null; return null; }
+    L.t += dt;
+    if (L.t >= LT4) {   // the flight is over: if there's no floor here, keep falling fast (the slam lands on touchdown)
+      p.leap = null; p.leapV = null;
+      if (!p.onGround) { p.vel.copy(L.v || V3(0, -30, 0)); p.vel.y = Math.min(p.vel.y, -30); }
+      return null;
+    }
+    if (!L.down && L.t >= LT3) L.down = true;
+    const want = leapAt(L, L.t, V3()).sub(p.pos).divideScalar(dt);
+    if (want.length() > 60) want.setLength(60);   /* blocked by a wall: don't build up a teleport */
+    if (L.t < LT1 && p.onGround) want.y = Math.min(want.y, 0);
+    p.leapV = want; L.v = want.clone(); if (L.t >= LT1) p.onGround = false; p.sliding = false;
+    return p.pos.clone();
+  }
+  // LEAP SLAM (RMB): crouch and charge, rocket ~10 m up toward where you aim with a front flip, hang with the hammer overhead, crash down
+  function titanDash(p) {
+    if (!p.alive || time < (p.tdashCD || 0) || p.slam || p.hThrown || p.leap) return;
+    p.tdashCD = time + TITAN.leapCD + LT4;
+    const E = leapTarget(p), S = p.pos.clone();
+    p.leap = { t: 0, S, E, A: Math.max(S.y, E.y) + LEAP.H, down: false };
+    p.vel.set(0, Math.min(p.vel.y, 0), 0); p.sliding = false;
+    p.slam = true; p.slamT = time + LT4; p.slamKind = 'leap';
+    setAnim(p, 'leap'); startFx(p, 'leap'); leapMark(E);
+    send({ t: 'f', id: p.id, w: p.weapon, e: [], an: 'leap', lt: arr(E) });
+  }
+  // the landing marker everyone sees: a red ring that tightens until the hammer comes down
+  const marks = [];
+  function leapMark(E) {
+    const g = new THREE.Group();
+    const ring = new THREE.Mesh(new THREE.RingGeometry(0.88, 1, 48).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xff3a20, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }));
+    const dot = new THREE.Mesh(new THREE.CircleGeometry(1, 32).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xff6a20, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }));
+    g.add(ring, dot); g.position.set(E.x, E.y + 0.07, E.z); g.renderOrder = 3; scene.add(g);
+    marks.push({ g, t: 0 });
+  }
+  function updateMarks(dt) {
+    const R = PROJ.tdash.splash;
+    for (let i = marks.length - 1; i >= 0; i--) {
+      const m = marks[i]; m.t += dt; const k = m.t / LT4;
+      if (k >= 1) { scene.remove(m.g); m.g.children.forEach(c => { c.geometry.dispose(); c.material.dispose(); }); marks.splice(i, 1); continue; }
+      const [ring, dot] = m.g.children;
+      ring.scale.setScalar(lerp(R * 1.6, R, ease.out(k))); ring.material.opacity = Math.min(1, m.t * 4) * (0.55 + 0.35 * Math.sin(m.t * (10 + k * 25)));
+      dot.scale.setScalar(R * 0.25 * k); dot.material.opacity = 0.35 * k;
+    }
   }
   // slam / leap landing: a blast through the normal explosion path; onBoom (every client) does the show
   function titanBoom(p, k, at) {
@@ -4694,7 +4758,7 @@ const Arms = (() => {
   // start-of-move effects (owner + remote)
   function startFx(p, kind) {
     const at = V3(p.pos.x, p.pos.y + 0.2, p.pos.z);
-    if (kind === 'leap') { play3D('hLeap', at, 1); wave(at, 2.2, 0xffd060, 0.3); for (let i = 0; i < 18; i++) spawnParticle(at.clone(), V3(rand(-4, 4), rand(0, 2), rand(-4, 4)), 0xbfb8a8, 0.22, 0.5, 2, false); }
+    if (kind === 'leap') play3D('hCharge', at, 1);
     if (kind === 'dive') play3D('hDive', at, 1);
   }
   // impact effects + sound for every hammer hit / whiff (kind picks the look and the sound)
@@ -4728,6 +4792,7 @@ const Arms = (() => {
     high:   { hx: 2.0, ry: 0, rz: 0, piv: [0.05, 0.32, -0.1], look: 0.4 },            // uppercut finish: thrown up high
     out:    { hx: 0.12, ry: -1.35, rz: 0, piv: [0.28, -0.04, -0.08], look: 0 },       // spins: swept out to the side
     thor:   { hx: 1.62, ry: 0, rz: 0, piv: [0.02, 0.4, -0.08], look: 0.45 },          // overhead, both arms up
+    coil:   { hx: 2.85, ry: 0.35, rz: 0.35, piv: [0.16, -0.22, 0.08], look: 0.25 },   // leap wind-up: hammer drawn low behind you
   };
   const GRIP = [0.07, 0.5];   // hand positions along the haft (m from the grip end, at full hammer scale)
   const _q = new THREE.Quaternion(), _e = new THREE.Euler(0, 0, 0, 'ZYX'), _m = new THREE.Matrix4(), _fwd = new THREE.Vector3(0, 0, -1);
@@ -4741,7 +4806,12 @@ const Arms = (() => {
     if (k === 'swing' && t < 0.55) return [t < 0.14 ? POSE.wind : t < 0.32 ? POSE.smash : POSE.idle, t < 0.14 ? 22 : t < 0.32 ? 45 : 12, 0, t > 0.12 && t < 0.32];
     if (k === 'upper' && t < 0.55) return [t < 0.12 ? POSE.low : t < 0.32 ? POSE.high : POSE.idle, t < 0.12 ? 30 : t < 0.32 ? 40 : 12, 0, t > 0.1 && t < 0.32];
     if (k === 'whirl' && t < 0.5) return [POSE.out, 30, ease.inOut(t / 0.5) * Math.PI * 2, true];
-    if (k === 'leap' && t < 2.5) return t < 0.5 ? [POSE.out, 30, ease.out(t / 0.5) * Math.PI * 2, true] : [POSE.thor, 18, 0, true];
+    if (k === 'leap' && t < LT4 + 1.5) {   // coil -> front flip on the way up -> arched back, hammer behind the head -> drive it down
+      if (t < LT1) return [POSE.coil, 16, 0, false, -0.45 * ease.out(t / LT1)];
+      if (t < LT2) { const f = ease.inOut((t - LT1) / (LEAP.rise * 0.9)); return [POSE.thor, 14, 0, true, lerp(-0.45, -Math.PI * 2 + 0.35, f)]; }
+      if (t < LT3) return [POSE.wind, 5, 0, true, 0.35 - 0.15 * ((t - LT2) / LEAP.hang)];
+      return [POSE.smash, 40, 0, true, -0.55];
+    }
     if (k === 'dive' && t < 2.5) return [POSE.thor, 25, 0, true];
     if (k === 'land' && t < 0.5) return [t < 0.3 ? POSE.smash : POSE.idle, t < 0.3 ? 55 : 12, 0, t < 0.1];
     return [POSE.idle, 10, 0, false];
@@ -4769,7 +4839,7 @@ const Arms = (() => {
     saveArms(av);
     g.visible = !p.hThrown;
     if (p.hThrown) { resetArms(av); return; }
-    const [P, rate, spin, trail] = targetPose(p), s = av.ts || (av.ts = { hx: POSE.idle.hx, ry: 0, rz: POSE.idle.rz, px: POSE.idle.piv[0], py: POSE.idle.piv[1], pz: POSE.idle.piv[2], look: 0 });
+    const [P, rate, spin, trail, tilt = 0] = targetPose(p), s = av.ts || (av.ts = { hx: POSE.idle.hx, ry: 0, rz: POSE.idle.rz, px: POSE.idle.piv[0], py: POSE.idle.piv[1], pz: POSE.idle.piv[2], look: 0, tilt: 0 });
     const a = 1 - Math.exp(-rate * dt), b = 1 - Math.exp(-12 * dt);
     s.hx = lerp(s.hx, P.hx, a); s.ry = lerp(s.ry, P.ry, a); s.rz = lerp(s.rz, P.rz, a);
     s.px = lerp(s.px, P.piv[0], a); s.py = lerp(s.py, P.piv[1], a); s.pz = lerp(s.pz, P.piv[2], a); s.look = lerp(s.look, P.look, b);
@@ -4779,6 +4849,15 @@ const Arms = (() => {
     av.gunPivot.position.set(s.px, s.py, s.pz);
     g.rotation.copy(_e.set(s.hx, s.ry, s.rz, 'ZYX'));
     av.root.rotation.y += spin;
+    // body tilt (the leap's front flip, arch and dive), turning around the hips rather than the feet
+    if (tilt > -Math.PI && tilt < Math.PI && Math.abs(s.tilt || 0) > Math.PI) s.tilt = Math.atan2(Math.sin(s.tilt), Math.cos(s.tilt));
+    s.tilt = lerp(s.tilt || 0, tilt, 1 - Math.exp(-(tilt < -1 ? 40 : 14) * dt));
+    if (Math.abs(s.tilt) > 1e-3 || av.root.rotation.x) {
+      av.root.rotation.order = 'YXZ'; av.root.rotation.x = s.tilt;
+      const c = 1.0, sa = Math.sin(s.tilt), yw = av.root.rotation.y;
+      av.root.position.x += -c * sa * Math.sin(yw); av.root.position.y += c * (1 - Math.cos(s.tilt)); av.root.position.z += -c * sa * Math.cos(yw);
+    }
+    if (p.tAnim === 'leap') leapBeats(p, av, time - (p.tAnimT || 0));
     // hands on the haft: two points along the hammer's axis, through the pivot + hammer transforms
     g.updateMatrix(); av.gunPivot.updateMatrix();
     const sc = g.scale.x || 1;
@@ -4792,22 +4871,45 @@ const Arms = (() => {
       for (let i = 0; i < 2; i++) spawnParticle(hp.clone().add(V3(rand(-.2, .2), rand(-.2, .2), rand(-.2, .2))), V3(), p.tAnim === 'leap' || p.tAnim === 'dive' ? 0xffd060 : 0xffb020, 0.2, 0.22, 0, true);
     }
   }
+  // the leap's beats, on every client: charge sparks, the launch blast, the apex whoosh, the crash-down
+  function leapBeats(p, av, t) {
+    const done = p.leapFx || 0, at = V3(p.pos.x, p.pos.y + 0.2, p.pos.z), hit = b => !(done & b) && (p.leapFx = (p.leapFx || 0) | b);
+    if (t < LT1) for (let i = 0; i < 2; i++) { const a = Math.random() * Math.PI * 2, r = rand(1.2, 2.2), o = V3(p.pos.x + Math.cos(a) * r, p.pos.y + rand(0.1, 1.6), p.pos.z + Math.sin(a) * r); spawnParticle(o, V3(p.pos.x - o.x, p.pos.y + 0.8 - o.y, p.pos.z - o.z).multiplyScalar(4), 0xffd060, 0.1, 0.25, 0, true); }
+    if (t >= LT1 && hit(1)) {
+      play3D('hLeap', at, 1); wave(at, 3, 0xffd060, 0.35); wave(at, 1.6, 0xffffff, 0.2);
+      for (let i = 0; i < 26; i++) spawnParticle(at.clone(), V3(rand(-5, 5), rand(0, 2.5), rand(-5, 5)), 0xbfb8a8, 0.24, 0.6, 2, false);
+      for (let i = 0; i < 14; i++) spawnParticle(at.clone(), V3(rand(-1.5, 1.5), rand(8, 16), rand(-1.5, 1.5)), 0xffd060, 0.12, 0.4, 4, true);
+      if (p === me) shakeAmt += 0.35;
+    }
+    if (t >= LT1 && t < LT2) spawnParticle(V3(p.pos.x + rand(-.3, .3), p.pos.y + rand(0, 1), p.pos.z + rand(-.3, .3)), V3(0, -3, 0), 0xffb020, 0.14, 0.35, 0, true);   /* exhaust trail */
+    if (t >= LT2 && hit(2)) { play3D('hApex', at, 1); wave(V3(p.pos.x, p.pos.y + 1, p.pos.z), 2.2, 0xffe0a0, 0.45); }
+    if (t >= LT3 && hit(4)) play3D('hDive', at, 1);
+    if (t >= LT3 && t < LT4 + 0.3 && !p.onGround) for (let i = 0; i < 3; i++) spawnParticle(V3(p.pos.x + rand(-.4, .4), p.pos.y + rand(0.3, 2), p.pos.z + rand(-.4, .4)), V3(0, 6, 0), i ? 0xffd060 : 0xffffff, 0.18, 0.25, 0, true);   /* streak */
+  }
+  // third-person camera: pull back while you leap so you see the arc and the landing
+  let pull = 0;
+  function camPull(dt) {
+    const on = me && me.alive && (me.leap || (me.slam && me.slamKind === 'leap'));
+    pull = lerp(pull, on ? 2.6 : 0, 1 - Math.exp(-(on ? 2.5 : 4) * dt));
+    return pull;
+  }
   // remote players' hammer moves arrive as 'f' messages
   function onRemoteTitan(p, m) {
     p.firedT = time; setAnim(p, m.an || 'swing');
     if (m.an === 'leap' || m.an === 'dive') startFx(p, m.an);
+    if (m.an === 'leap' && Array.isArray(m.lt) && m.lt.length === 3 && m.lt.every(Number.isFinite)) leapMark(V3().fromArray(m.lt));
     if (m.e && m.e[0]) titanFx(V3().fromArray(m.e[0]), !!m.e[1], +m.r || TITAN.R, m.an || 'swing', !!m.e[2]);
   }
   // bots: leap at someone 6-13 m ahead (never off the edge)
   function botWantsDash(b) {
-    if (time < (b.tdashCD || 0) || b.slam || b.hThrown) return false;
+    if (time < (b.tdashCD || 0) || b.slam || b.hThrown || b.leap) return false;
     const fx = -Math.sin(b.yaw), fz = -Math.cos(b.yaw);
     for (const q of players.values()) {
       if (!q.alive || q === b || allies(b, q)) continue;
       const dx = q.pos.x - b.pos.x, dz = q.pos.z - b.pos.z, d = Math.hypot(dx, dz);
-      if (d > 6 && d < 13 && (dx * fx + dz * fz) / d > 0.92 && Math.abs(q.pos.y - b.pos.y) < 1.5) {
+      if (d > 6 && d < 16 && (dx * fx + dz * fz) / d > 0.92 && Math.abs(q.pos.y - b.pos.y) < 1.5) {
         if (groundBelow(V3(q.pos.x, q.pos.y + 1, q.pos.z), 4).y < q.pos.y - 2.5) return false;
-        return Math.random() < 0.08;
+        return Math.random() < 0.05;
       }
     }
     return false;
@@ -4837,7 +4939,7 @@ const Arms = (() => {
   }
   // bots: where the scythe makes sense, and which power weapons want close range
   const botMayFire = (b, w, dist) => !(w.dash && dist > w.dash - 1) && !(w.strike && dist < 7) && !(w.proj === 'turret' && dist > 30);
-  return { PROJ, FX, projMesh, fire, dmgMul, rhythm, rateMul, shove, airMul, preMove, dashVel, postMove, tick, steer, stillTick, onSpawnProj, onRemoteProj, beamFx, spawnEffect, update, hitMeshes, isTurretId, hitTurret, blastTurrets, onMsg, clear, warmObjects, drawRadar, botMayFire, botThreat, titanFx, titanHud, swingCenter, titanPose, resetArms, onRemoteTitan, onBoom, throwHammer, spawnThrow, detonate, get turrets() { return turrets; }, get bubbles() { return bubbles; } };
+  return { camPull, LEAP, PROJ, FX, projMesh, fire, dmgMul, rhythm, rateMul, shove, airMul, preMove, dashVel, postMove, tick, steer, stillTick, onSpawnProj, onRemoteProj, beamFx, spawnEffect, update, hitMeshes, isTurretId, hitTurret, blastTurrets, onMsg, clear, warmObjects, drawRadar, botMayFire, botThreat, titanFx, titanHud, swingCenter, titanPose, resetArms, onRemoteTitan, onBoom, throwHammer, spawnThrow, detonate, get turrets() { return turrets; }, get bubbles() { return bubbles; } };
 })();
 
 </script>
@@ -8554,7 +8656,7 @@ const SaveXfer = (() => {
 //  Browsers may serve a cached older page for a while (GitHub Pages: 10 min), and mismatched versions can't
 //  play together, so the game polls version.json and offers a cache-busting reload when a newer build is out.
 // =====================================================================
-const BUILD_ID = '8aee90027f';
+const BUILD_ID = 'a592ff60c0';
 const UpdateCheck = (() => {
   let shown = false;
   async function check() {
@@ -9121,7 +9223,7 @@ const BOT_DIFF = {
 const botDiff = () => match.mode === 'horde' ? Prog.adaptiveDiff(760 + Horde.wave * 45) : Settings.botDiff === 'adaptive' ? Prog.adaptiveDiff() : BOT_DIFF[Settings.botDiff] || BOT_DIFF.normal;
 const NET_DT = 1 / 30;   // state send rate on direct P2P links (30 Hz); the MQTT relay stays at 20 Hz (netDt)
 const netDt = () => (net && net.relay ? 1 / 20 : NET_DT);   // match length / respawn delay come from the match rules (R)
-const NET_PREFIX = 'slidefire-arena-v13-';
+const NET_PREFIX = 'slidefire-arena-v14-';
 
 // ---------------- weapons ----------------
 const WEAPONS = [
@@ -9182,7 +9284,7 @@ const WEAPONS = [
   { key: 'locust', name: 'LOCUST', short: 'LOCUST', desc: 'Power weapon: a salvo of 6 homing micro-missiles shared among enemies near your aim', pickup: '3 SALVOS · AIM NEAR ENEMIES', power: true, proj: 'locust', salvo: 6, rate: 0.9, dmg: 22, mag: 3, reload: 99, zoom: 0.85, adsTime: 0.14, recoil: 0.04, shake: 0.16, sound: 'locust', tracerColor: 0xffa030, flash: 0xffb050, gunLen: 1.1 },
   { key: 'sentinel', name: 'SENTINEL', short: 'SENTRY', desc: 'Power weapon: throw a turret that guns down enemies it can see', pickup: '1 TURRET · 18 S · IT CAN BE SHOT DOWN', power: true, proj: 'turret', rate: 0.6, mag: 1, reload: 99, zoom: 1, adsTime: 0.1, recoil: 0, shake: 0.05, sound: 'throw', tracerColor: 0x50ff9a, flash: 0x50ff9a, gunLen: 0.8 },
   // ---- HAMMERFALL: the TITAN HAMMER (mode weapon). Area swing: dead-centre 100, off-centre 85 -> 25 at the edge; RMB slam-dash; air slam ----
-  { key: 'titan', name: 'TITAN HAMMER', short: 'TITAN', desc: 'Hammerfall: a giant hammer. Centre hits kill, edges bruise, everything flies', special: 'Swing hits an AREA in front of you: dead-centre kills, the edge only bruises. RMB slam-dashes forward. Look down mid-air to slam.', melee: true, titan: true, rate: 0.8, dmg: 100, mag: 1, reload: 0.1, range: 5, spread: 0, moveSpread: 0, adsMul: 1, zoom: 1, adsTime: 0.1, pellets: 1, recoil: 0, shake: 0.3, sound: 'hWind', tracerColor: 0xffb020, flash: 0xffb020, moveMul: 1.1, gunLen: 1.3 },
+  { key: 'titan', name: 'TITAN HAMMER', short: 'TITAN', desc: 'Hammerfall: a giant hammer. Centre hits kill, edges bruise, everything flies', special: 'Swing hits an AREA in front of you: dead-centre kills, the edge only bruises. RMB: charge, LEAP high toward your aim and crash down (everyone sees the red landing ring). Look down mid-air to slam.', melee: true, titan: true, rate: 0.8, dmg: 100, mag: 1, reload: 0.1, range: 5, spread: 0, moveSpread: 0, adsMul: 1, zoom: 1, adsTime: 0.1, pellets: 1, recoil: 0, shake: 0.3, sound: 'hWind', tracerColor: 0xffb020, flash: 0xffb020, moveMul: 0.82, gunLen: 1.3 },
 ];
 const W_SCATTER = 2, W_SNIPER = 3, W_ROCKET = 4, W_PISTOL = 5, W_VULTURE = 6, W_TRIDENT = 7, W_HAVOC = 8, W_STINGER = 9, W_RAIL = 10, W_HAIL = 11, W_ARC = 12, W_SING = 13, W_XBOW = 14, W_PINBALL = 15, W_SCORCH = 16, W_FANG = 17, W_KESTREL = 18, W_BLADE = 19,
   W_SURGE = 20, W_LUMEN = 21, W_ANVIL = 22, W_MAULER = 23, W_PIPER = 24, W_GEMINI = 25,
@@ -9239,7 +9341,7 @@ const MODES = {
   infect: { name: 'INFECTION', voice: 'infection', desc: 'Party: one player starts INFECTED (knife, fast, one-stab kills). Killed survivors join them. Survive the timer to score. {n} rounds.', limit: 4, teams: true, party: true, noClock: true, power: false },
   jugg: { name: 'JUGGERNAUT', voice: 'juggernaut', desc: 'Party: everyone vs one giant LMG Juggernaut. Kill it to become it. First to {n} points.', limit: 15, teams: true, party: true, power: false },
   hide: { name: 'HIDE & SEEK', voice: 'hide and seek', desc: 'Party: hiders turn into props and hide while the seekers are blind. Found hiders become seekers. Misses cost seekers HP. {n} rounds.', limit: 4, teams: true, party: true, noClock: true, power: false, noNades: true },
-  hammer: { name: 'HAMMERFALL', desc: 'Third-person hammer brawl: everyone swings a TITAN HAMMER. Dead-centre hits kill, edges bruise. RMB slam-dashes, double jump in the air. Knock enemies off the floating arena. First to {n}.', limit: 15, loadout: [W_TITAN], infinite: true, noNades: true, power: false, tp: true, djump: true, air: 1.5 },
+  hammer: { name: 'HAMMERFALL', desc: 'Third-person hammer brawl: everyone swings a TITAN HAMMER. Dead-centre hits kill, edges bruise. RMB leaps sky-high and crashes down where you aim, double jump in the air. Knock enemies off the floating arena. First to {n}.', limit: 15, loadout: [W_TITAN], infinite: true, noNades: true, power: false, tp: true, djump: true, air: 1.5 },
   instagib: { name: 'INSTAGIB', voice: 'instagib', desc: 'Everyone gets an infinite railgun. One hit kills. First to {n}.', limit: 20, loadout: [W_RAIL], igPick: true, infinite: true, noNades: true, power: false },
 };
 // ---------------- match rules: chosen by the host in the lobby, sent to everyone with each match ----------------
@@ -10616,6 +10718,7 @@ function respawn(p) {
   p.pos.copy(sp); p.vel.set(0, 0, 0); p.lastPos.copy(sp);
   p.hp = p.maxHp = Math.round(R.hp * (p.hpMul || 1)); p.alive = true; p.spawnProt = SPAWN_PROT; p.ammo = WEAPONS.map(w => w.mag); p.reloadT = 0;
   p.crouch = false; p.sliding = false; p.height = H_STAND; p.onGround = false; p.wallRunning = false;
+  p.leap = null; p.leapV = null; p.slam = false; p.slamKind = null;
   p.nades = NADE_MAX; p.nadeRe = 0; p.adsK = 0; p.lastAtt = null;
   p.yaw = Math.atan2(sp.x, sp.z); p.pitch = 0;
   applyLoadout(p); Mut.loadout(p); Mut.onSpawn(p);
@@ -12440,7 +12543,7 @@ function localInput() {
   };
 }
 function stepPlayer(p, inp, dt) {
-  if (Party.frozen(p)) { inp.f = 0; inp.s = 0; inp.jump = false; inp.jumpPress = false; inp.slide = false; }   // HIDE & SEEK: seekers wait
+  if (Party.frozen(p) || p.leap) { inp.f = 0; inp.s = 0; inp.jump = false; inp.jumpPress = false; inp.slide = false; }   // HIDE & SEEK: seekers wait (HAMMERFALL: the leap flies itself)
   const n = Math.ceil(dt / (1 / 120));
   const sdt = dt / n;
   let jumped = false;
@@ -12573,9 +12676,10 @@ function tpCamera(dt) {
   _tpF.set(0, 0, -1).applyQuaternion(camera.quaternion); _tpR.set(1, 0, 0).applyQuaternion(camera.quaternion);
   const pivot = camera.position.clone().addScaledVector(_tpR, 0.6).add(V3(0, 0.45, 0));
   const back = _tpF.clone().negate();
-  _tpRay.set(pivot, back); _tpRay.far = 4.4;
+  const ex = Arms.camPull(dt);   // HAMMERFALL leap: pull out to show the arc
+  _tpRay.set(pivot, back); _tpRay.far = 4.4 + ex;
   const hit = _tpRay.intersectObjects(World.rayMeshes, false)[0];
-  const want = hit ? Math.max(0.8, hit.distance - 0.35) : 4.2;
+  const want = hit ? Math.max(0.8, hit.distance - 0.35) : 4.2 + ex;
   tpDist = want < tpDist ? want : lerp(tpDist, want, 1 - Math.exp(-5 * dt));
   camera.position.copy(pivot).addScaledVector(back, tpDist);
 }
