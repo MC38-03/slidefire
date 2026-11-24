@@ -8554,7 +8554,7 @@ const SaveXfer = (() => {
 //  Browsers may serve a cached older page for a while (GitHub Pages: 10 min), and mismatched versions can't
 //  play together, so the game polls version.json and offers a cache-busting reload when a newer build is out.
 // =====================================================================
-const BUILD_ID = 'd7c820c384';
+const BUILD_ID = '8aee90027f';
 const UpdateCheck = (() => {
   let shown = false;
   async function check() {
@@ -9354,6 +9354,7 @@ const KNIFE_KEYS = Object.keys(KNIVES);
 const knifeOf = k => (KNIVES[k] ? k : 'karambit');
 // extruded blade profile: shape x = along the blade (forward = -z in the gun model), shape y = up
 function bladeGeo(cmds, depth = 0.008, holes, grind = 'single') {
+  depth *= 0.72;   // real spines are thin: the old blades were 2-3x too chunky
   const sh = new THREE.Shape();
   for (const c of cmds) { if (c[0] === 'm') sh.moveTo(c[1], c[2]); else if (c[0] === 'l') sh.lineTo(c[1], c[2]); else sh.quadraticCurveTo(c[1], c[2], c[3], c[4]); }
   if (holes) for (const [x, y, r] of holes) { const h = new THREE.Path(); h.absarc(x, y, r, 0, Math.PI * 2, true); sh.holes.push(h); }
@@ -9416,6 +9417,7 @@ function knifeEnv() {
 }
 // rounded, contoured handle: palm swell on top, rounded butt, finger bulges underneath; extruded with a soft bevel
 function handleGeo(L, top = 0.014, bot = -0.016, fingers = 3, width = 0.02) {
+  width *= 0.72;   // slimmer grips (the bevel still rounds them)
   const s = new THREE.Shape();
   s.moveTo(0.004, top);
   s.quadraticCurveTo(-L * 0.5, top + 0.006, -L, top - 0.002);                 // palm swell
@@ -9427,6 +9429,8 @@ function handleGeo(L, top = 0.014, bot = -0.016, fingers = 3, width = 0.02) {
   gg.translate(0, 0, -width / 2); gg.rotateY(Math.PI / 2);
   return gg;
 }
+// scale a blade outline along its length (proportions: blade vs handle)
+const bladeLen = (cmds, f) => cmds.map(c => c[0] === 'q' ? ['q', c[1] * f, c[2], c[3] * f, c[4]] : [c[0], c[1] * f, c[2]]);
 // builds every knife model under the viewmodel knife pivot; each group's origin is its natural spin point
 function buildKnives(pivot, M) {
   const env = knifeEnv();
@@ -9454,23 +9458,23 @@ function buildKnives(pivot, M) {
     const grip = new THREE.Group(); grip.rotation.x = -0.18; m.add(grip);                     // slightly curved grip
     mk(handleGeo(o.grip, 0.014, -0.017, 3, 0.019), o.hmat, grip, 0, -.002, .012);
     for (const z of [.03, o.grip - .006]) pin(grip, z);
-    mk(new THREE.TorusGeometry(o.ring, 0.0085, 12, 30).rotateY(Math.PI / 2), steel, m, 0, -.006, o.ringZ);
+    mk(new THREE.TorusGeometry(o.ring, o.ring * 0.28, 12, 32).rotateY(Math.PI / 2), steel, m, 0, -.006, o.ringZ);
     return g;
   };
   out.karambit = ringKnife({
     blade: [['m', 0, 0.017], ['q', 0.075, 0.03, 0.125, -0.045], ['l', 0.118, -0.05], ['q', 0.07, -0.006, 0, -0.017], ['l', 0, 0.017]],
     edge: [['m', 0.012, -0.012], ['q', 0.07, -0.002, 0.117, -0.047], ['q', 0.068, -0.01, 0.012, -0.017], ['l', 0.012, -0.012]],
-    grip: 0.1, ring: 0.026, ringZ: 0.142, jimp: false, hmat: H.g10,
+    grip: 0.1, ring: 0.0185, ringZ: 0.128, jimp: false, hmat: H.g10,
   });
   out.talon = ringKnife({
     blade: [['m', 0, 0.02], ['q', 0.1, 0.042, 0.158, -0.06], ['l', 0.15, -0.066], ['q', 0.088, -0.006, 0, -0.019], ['l', 0, 0.02]],
     edge: [['m', 0.012, -0.014], ['q', 0.09, -0.002, 0.15, -0.062], ['q', 0.086, -0.011, 0.012, -0.019], ['l', 0.012, -0.014]],
-    grip: 0.12, ring: 0.03, ringZ: 0.164, jimp: true, jimpY: 0.024, hmat: H.talon,
+    grip: 0.12, ring: 0.021, ringZ: 0.151, jimp: true, jimpY: 0.024, hmat: H.talon,
   });
   // BUTTERFLY: blade + two skeletonised steel handle halves hinged at the blade base
   {
     const g = new THREE.Group();
-    mk(bladeGeo([['m', 0, 0.011], ['l', 0.135, 0.011], ['l', 0.172, 0], ['q', 0.12, -0.018, 0, -0.013], ['l', 0, 0.011]]), M.metal, g, 0, 0, 0);
+    mk(bladeGeo(bladeLen([['m', 0, 0.011], ['l', 0.135, 0.011], ['l', 0.172, 0], ['q', 0.12, -0.018, 0, -0.013], ['l', 0, 0.011]], 0.76)), M.metal, g, 0, 0, 0);
     const hA = new THREE.Group(), hB = new THREE.Group(); hA.position.set(0.0075, 0, 0); hB.position.set(-0.0075, 0, 0); g.add(hA, hB);
     for (const [h, s] of [[hA, 1], [hB, -1]]) {
       box(h, .006, .007, .124, steel, 0, .0085, .062); box(h, .006, .007, .124, steel, 0, -.0085, .062);   // open-frame rails
@@ -9485,7 +9489,7 @@ function buildKnives(pivot, M) {
   // BAYONET: long clip point with a polished fuller, crossguard, contoured rubber grip, pommel
   {
     const g = new THREE.Group();
-    mk(bladeGeo([['m', 0, 0.015], ['l', 0.2, 0.015], ['l', 0.27, 0], ['q', 0.2, -0.02, 0, -0.016], ['l', 0, 0.015]], 0.009), M.metal, g, 0, 0, 0);
+    mk(bladeGeo(bladeLen([['m', 0, 0.015], ['l', 0.2, 0.015], ['l', 0.27, 0], ['q', 0.2, -0.02, 0, -0.016], ['l', 0, 0.015]], 0.8), 0.009), M.metal, g, 0, 0, 0);
     box(g, .022, .07, .012, steel, 0, -.002, .006);
     mk(handleGeo(.105, .016, -.018, 4, .023), H.rubber, g, 0, -.002, .014);
     box(g, .031, .04, .02, steel, 0, -.002, .126);
@@ -9494,7 +9498,7 @@ function buildKnives(pivot, M) {
   // FLIP KNIFE: drop point with a thumb hole, walnut scales on a steel liner, pivot bolster
   {
     const g = new THREE.Group();
-    mk(bladeGeo([['m', 0, 0.016], ['l', 0.15, 0.016], ['q', 0.2, 0.012, 0.205, -0.002], ['q', 0.13, -0.022, 0, -0.016], ['l', 0, 0.016]], 0.008, [[0.028, 0.004, 0.0065]]), M.metal, g, 0, 0, 0);
+    mk(bladeGeo(bladeLen([['m', 0, 0.016], ['l', 0.15, 0.016], ['q', 0.2, 0.012, 0.205, -0.002], ['q', 0.13, -0.022, 0, -0.016], ['l', 0, 0.016]], 0.75), 0.008, [[0.028, 0.004, 0.0065]]), M.metal, g, 0, 0, 0);
     mk(handleGeo(.118, .015, -.016, 0, .022), H.walnut, g, 0, -.002, .008);
     box(g, .0235, .003, .12, steel, 0, .0145, .066);                                           // liner along the spine
     for (const z of [.03, .1]) pin(g, z);
@@ -9505,7 +9509,7 @@ function buildKnives(pivot, M) {
   {
     const g = new THREE.Group();
     const spine = [['m', 0, 0.02]]; for (let i = 0; i < 7; i++) { spine.push(['l', 0.03 + i * 0.016, 0.026]); spine.push(['l', 0.038 + i * 0.016, 0.02]); }
-    mk(bladeGeo([...spine, ['l', 0.2, 0.02], ['l', 0.25, 0.003], ['q', 0.17, -0.03, 0, -0.02], ['l', 0, 0.02]], 0.01), M.metal, g, 0, 0, 0);
+    mk(bladeGeo(bladeLen([...spine, ['l', 0.2, 0.02], ['l', 0.25, 0.003], ['q', 0.17, -0.03, 0, -0.02], ['l', 0, 0.02]], 0.86), 0.01), M.metal, g, 0, 0, 0);
     box(g, .02, .02, .012, steel, 0, -.026, .006); box(g, .022, .056, .012, steel, 0, -.004, .006);   // finger guard
     mk(handleGeo(.108, .017, -.018, 4, .024), H.walnutD, g, 0, -.003, .014);
     for (const z of [.035, .09]) pin(g, z, -.003, .033);
@@ -9515,7 +9519,7 @@ function buildKnives(pivot, M) {
   // STILETTO: long needle blade on a pivot (folds into the handle), slim black-pearl handle with steel caps
   {
     const g = new THREE.Group(), fold = new THREE.Group(); g.add(fold);
-    mk(bladeGeo([['m', 0, 0.009], ['l', 0.16, 0.007], ['l', 0.21, 0], ['l', 0.16, -0.007], ['l', 0, -0.009], ['l', 0, 0.009]], 0.0075, null, 'double'), M.metal, fold, 0, 0, 0);
+    mk(bladeGeo(bladeLen([['m', 0, 0.009], ['l', 0.16, 0.007], ['l', 0.21, 0], ['l', 0.16, -0.007], ['l', 0, -0.009], ['l', 0, 0.009]], 0.72), 0.0075, null, 'double'), M.metal, fold, 0, 0, 0);
     mk(handleGeo(.128, .012, -.012, 0, .017), H.pearl, g, 0, 0, .008);
     box(g, .021, .028, .014, steel, 0, 0, .004); box(g, .021, .028, .016, steel, 0, 0, .134);
     box(g, .006, .008, .02, steel, .012, .006, .04);                                           // release button
@@ -9525,7 +9529,7 @@ function buildKnives(pivot, M) {
   // GUT KNIFE: drop point with a gut hook, olive rubber grip with finger grooves
   {
     const g = new THREE.Group();
-    mk(bladeGeo([['m', 0, 0.018], ['l', 0.065, 0.018], ['l', 0.075, 0.006], ['q', 0.092, -0.002, 0.104, 0.016], ['l', 0.16, 0.013], ['l', 0.2, 0], ['q', 0.12, -0.024, 0, -0.018], ['l', 0, 0.018]], 0.0095), M.metal, g, 0, 0, 0);
+    mk(bladeGeo(bladeLen([['m', 0, 0.018], ['l', 0.065, 0.018], ['l', 0.075, 0.006], ['q', 0.092, -0.002, 0.104, 0.016], ['l', 0.16, 0.013], ['l', 0.2, 0], ['q', 0.12, -0.024, 0, -0.018], ['l', 0, 0.018]], 0.8), 0.0095), M.metal, g, 0, 0, 0);
     box(g, .022, .04, .012, steel, 0, -.002, .006);
     mk(handleGeo(.112, .015, -.017, 3, .023), H.olive, g, 0, -.003, .013);
     out.gut = g;
@@ -9533,10 +9537,10 @@ function buildKnives(pivot, M) {
   // SKELETON: drop point, open steel frame handle with a red paracord wrap, ring pommel
   {
     const g = new THREE.Group();
-    mk(bladeGeo([['m', 0, 0.016], ['l', 0.13, 0.016], ['q', 0.18, 0.012, 0.19, -0.002], ['q', 0.12, -0.022, 0, -0.016], ['l', 0, 0.016]], 0.009), M.metal, g, 0, 0, 0);
+    mk(bladeGeo(bladeLen([['m', 0, 0.016], ['l', 0.13, 0.016], ['q', 0.18, 0.012, 0.19, -0.002], ['q', 0.12, -0.022, 0, -0.016], ['l', 0, 0.016]], 0.9), 0.009), M.metal, g, 0, 0, 0);
     for (const y of [.012, -.016]) box(g, .012, .007, .124, steel, 0, y, .068);
     for (let i = 0; i < 8; i++) mk(new THREE.CylinderGeometry(.0105, .0105, .0078, 10).rotateX(Math.PI / 2), H.cord, g, 0, -.002, .02 + i * .0125).scale.set(1, 1.55, 1);
-    mk(new THREE.TorusGeometry(.017, .0055, 10, 22).rotateY(Math.PI / 2), steel, g, 0, -.002, .146);
+    mk(new THREE.TorusGeometry(.013, .0042, 10, 24).rotateY(Math.PI / 2), steel, g, 0, -.002, .141);
     out.skeleton = g;
   }
   // PLASMA EDGE: hilt with emitter rings; the beam extends from the emitter (scale) and glows (its look is the glow: kept)
