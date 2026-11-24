@@ -567,6 +567,7 @@ body.lowfx #menu{backdrop-filter:none;background:rgba(5,3,12,.9)}
 .xrow{display:flex;gap:8px}.xrow .big{margin-top:0;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:13px;padding:10px}.xrow .big small{font-family:Rajdhani;font-size:12px;opacity:.8;letter-spacing:.02em}
 #xferCode{width:100%;font-family:monospace;font-size:11px;background:rgba(0,0,0,.4);color:#ddd;border:1px solid var(--line);border-radius:8px;padding:6px;margin:4px 0 6px;resize:vertical}
 .xhint{margin-bottom:14px;padding:10px 14px;border-radius:10px;background:linear-gradient(90deg,rgba(0,229,255,.16),rgba(14,10,30,.95));border:1px solid rgba(0,229,255,.45);font-family:Rajdhani;font-size:15px;color:#e8f9ff;display:flex;align-items:center;gap:10px;flex-wrap:wrap}.xhint a{color:var(--cyan);font-weight:700}.xhint .rreset{margin-left:auto}
+#updBanner{position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:10000;display:flex;align-items:center;gap:12px;padding:10px 14px;border-radius:12px;background:rgba(10,6,24,.97);border:1px solid var(--orange);box-shadow:0 8px 30px rgba(0,0,0,.6);font-family:Rajdhani;font-size:16px;color:#fff}#updBanner b{color:var(--orange)}#updBanner button{font-family:Orbitron;font-size:11px;letter-spacing:.1em;padding:8px 12px;border-radius:8px;background:linear-gradient(90deg,#ff8a00,#ff2bd6);color:#fff}#updBanner button.ghost{background:rgba(255,255,255,.08)}
 </style>
 </head>
 <body>
@@ -8192,6 +8193,34 @@ const SaveXfer = (() => {
     $$('xferPaste').onclick = () => { const v = $$('xferCode').value; if (!v.trim()) return say('Paste a code into the box first.', false); apply(v); };
   }
   return { pack, unpack, apply, bind, describe };
+})();
+
+// =====================================================================
+//  UPDATE CHECK (hosted site only): tools/deploy.js stamps BUILD_ID into the page and writes version.json.
+//  Browsers may serve a cached older page for a while (GitHub Pages: 10 min), and mismatched versions can't
+//  play together, so the game polls version.json and offers a cache-busting reload when a newer build is out.
+// =====================================================================
+const BUILD_ID = '1d1c742260';
+const UpdateCheck = (() => {
+  let shown = false;
+  async function check() {
+    if (shown || !/^https?:/.test(location.protocol) || BUILD_ID.startsWith('__')) return;
+    try {
+      const r = await fetch('version.json?t=' + Date.now(), { cache: 'no-store' }); if (!r.ok) return;
+      const v = await r.json();
+      if (v && v.build && v.build !== BUILD_ID) show(v.build);
+    } catch (e) { }
+  }
+  function show(id) {
+    shown = true;
+    const el = document.createElement('div'); el.id = 'updBanner';
+    el.innerHTML = `<b>A new version of SLIDEFIRE is out.</b> Friends on the new version can't join an old one.<button id="updGo">UPDATE NOW</button><button id="updLater" class="ghost">LATER</button>`;
+    document.body.appendChild(el);
+    el.querySelector('#updGo').onclick = () => { location.href = location.pathname + '?v=' + encodeURIComponent(id); };
+    el.querySelector('#updLater').onclick = () => el.remove();
+  }
+  setTimeout(check, 4000); setInterval(() => { if (typeof mode === 'undefined' || mode !== 'game') check(); }, 5 * 60 * 1000);   // never interrupts a match
+  return { check, get id() { return BUILD_ID; } };
 })();
 
 </script>
