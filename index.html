@@ -8554,7 +8554,7 @@ const SaveXfer = (() => {
 //  Browsers may serve a cached older page for a while (GitHub Pages: 10 min), and mismatched versions can't
 //  play together, so the game polls version.json and offers a cache-busting reload when a newer build is out.
 // =====================================================================
-const BUILD_ID = 'a607d383c7';
+const BUILD_ID = 'aa34b11337';
 const UpdateCheck = (() => {
   let shown = false;
   async function check() {
@@ -9362,122 +9362,161 @@ function bladeGeo(cmds, depth = 0.008, holes) {
   const uv = g.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * 7, uv.getY(i) * 7);
   return g;
 }
+// a soft studio environment for knife steel: without one, metal has nothing to reflect and renders near black
+let _knifeEnv = null;
+function knifeEnv() {
+  if (_knifeEnv) return _knifeEnv;
+  const c = document.createElement('canvas'); c.width = 512; c.height = 256; const g = c.getContext('2d');
+  const sky = g.createLinearGradient(0, 0, 0, 256);
+  sky.addColorStop(0, '#f6f8ff'); sky.addColorStop(0.42, '#9aa3bb'); sky.addColorStop(0.5, '#5a5f70'); sky.addColorStop(0.62, '#2a2b33'); sky.addColorStop(1, '#0c0c10');
+  g.fillStyle = sky; g.fillRect(0, 0, 512, 256);
+  g.fillStyle = 'rgba(255,255,255,0.95)'; g.fillRect(60, 40, 110, 22); g.fillRect(300, 28, 150, 18);   // softboxes: the bright streaks along a blade
+  g.fillStyle = 'rgba(255,214,170,0.7)'; g.fillRect(200, 70, 60, 14);                                 // a warm key light
+  g.fillStyle = 'rgba(120,200,255,0.45)'; g.fillRect(420, 100, 70, 10);                               // cool rim
+  const tex = new THREE.CanvasTexture(c); tex.mapping = THREE.EquirectangularReflectionMapping; tex.encoding = THREE.sRGBEncoding;
+  try { const pm = new THREE.PMREMGenerator(renderer); _knifeEnv = pm.fromEquirectangular(tex).texture; pm.dispose(); } catch (e) { _knifeEnv = tex; }
+  return _knifeEnv;
+}
+// rounded, contoured handle: palm swell on top, rounded butt, finger bulges underneath; extruded with a soft bevel
+function handleGeo(L, top = 0.014, bot = -0.016, fingers = 3, width = 0.02) {
+  const s = new THREE.Shape();
+  s.moveTo(0.004, top);
+  s.quadraticCurveTo(-L * 0.5, top + 0.006, -L, top - 0.002);                 // palm swell
+  s.quadraticCurveTo(-L - 0.015, (top + bot) / 2, -L, bot);                    // rounded butt
+  const n = Math.max(1, fingers), seg = (L + 0.004) / n;
+  for (let i = 0; i < n; i++) { const xa = -L + seg * i, xb = xa + seg; s.quadraticCurveTo((xa + xb) / 2, bot - (fingers ? 0.009 : 0.003), xb, bot); }   // finger bulges
+  s.lineTo(0.004, top);
+  const gg = new THREE.ExtrudeGeometry(s, { depth: width, bevelEnabled: true, bevelThickness: 0.004, bevelSize: 0.0035, bevelSegments: 3, curveSegments: 10 });
+  gg.translate(0, 0, -width / 2); gg.rotateY(Math.PI / 2);
+  return gg;
+}
 // builds every knife model under the viewmodel knife pivot; each group's origin is its natural spin point
 function buildKnives(pivot, M) {
+  const env = knifeEnv();
+  const std = (color, roughness, metalness, extra) => new THREE.MeshStandardMaterial(Object.assign({ color, roughness, metalness, envMap: env, envMapIntensity: 1.2 }, extra || {}));
+  // blade steel (M.metal carries the knife finish): bright polished steel by default
+  Object.assign(M.metal, { envMap: env, envMapIntensity: 1.4, metalness: 1, roughness: 0.2 }); M.metal.color.setHex(0xd6dae2); M.metal.needsUpdate = true;
+  if (vm.knifeBladeBase) Object.assign(vm.knifeBladeBase, { color: 0xd6dae2, metalness: 1, roughness: 0.2 });
+  const edge = std(0xffffff, 0.06, 1, { envMapIntensity: 2.2 });          // honed edge / fuller: catches the light
+  const steel = std(0xb4bac6, 0.32, 0.95);                                  // guards, bolsters, pins, rings
+  const black = std(0x26282e, 0.45, 0.8);                                   // blackened steel
+  const H = {                                                               // handle materials
+    g10: std(0x1c2622, 0.62, 0.05), rubber: std(0x16171a, 0.88, 0), walnut: std(0x5c3420, 0.5, 0.05, { envMapIntensity: 0.5 }),
+    walnutD: std(0x43261a, 0.5, 0.05, { envMapIntensity: 0.5 }), pearl: std(0x1b1b24, 0.22, 0.35), olive: std(0x3b4230, 0.82, 0), cord: std(0x7c1f20, 0.9, 0), talon: std(0x2b2d28, 0.6, 0.1),
+  };
   const mk = (geo, mat, parent, x, y, z) => { const o = new THREE.Mesh(geo, mat); o.position.set(x, y, z); parent.add(o); return o; };
   const box = (parent, sx, sy, sz, mat, x, y, z) => mk(new THREE.BoxGeometry(sx, sy, sz), mat, parent, x, y, z);
+  const pin = (parent, z, y = -.002, w = .03) => mk(new THREE.CylinderGeometry(.0034, .0034, w, 10).rotateZ(Math.PI / 2), steel, parent, 0, y, z);
   const out = {};
-  // ring knives: blade + bolster + curved grip with finger grooves + pins + heavy ring
-  // (group origin = ring centre, so inspects / draws spin the knife on the finger)
+  // ring knives: blade + bolster + curved contoured grip + pins + heavy ring (group origin = ring centre: spins on the finger)
   const ringKnife = (o) => {
     const g = new THREE.Group(), m = new THREE.Group(); g.add(m); m.position.z = -o.ringZ; g.position.z = o.ringZ;
     mk(bladeGeo(o.blade, 0.011), M.metal, m, 0, 0, 0);
-    mk(bladeGeo(o.edge, 0.0125), vmAccent, m, 0, 0, 0);                                       // honed inner edge (glows)
-    if (o.jimp) for (let i = 0; i < 6; i++) box(m, .013, .005, .004, M.dark, 0, o.jimpY + .001 * i, -.012 - i * .009);   // jimping on the spine
-    box(m, .02, .036, .014, M.metal, 0, 0, .006);                                              // bolster
+    mk(bladeGeo(o.edge, 0.0122), edge, m, 0, 0, 0);                                           // honed inner edge
+    if (o.jimp) for (let i = 0; i < 6; i++) box(m, .013, .005, .004, black, 0, o.jimpY + .001 * i, -.012 - i * .009);
+    box(m, .022, .036, .014, steel, 0, 0, .006);                                              // bolster
     const grip = new THREE.Group(); grip.rotation.x = -0.18; m.add(grip);                     // slightly curved grip
-    box(grip, .02, .032, o.grip, M.body, 0, -.003, o.grip / 2 + .012);
-    box(grip, .023, .026, o.grip * .8, M.dark, 0, -.003, o.grip / 2 + .012);                  // grip scales
-    for (let i = 0; i < 3; i++) box(grip, .022, .008, .008, M.dark, 0, -.02, .03 + i * .024);  // finger grooves
-    for (const z of [.025, o.grip - .01]) mk(new THREE.CylinderGeometry(.0035, .0035, .026, 8).rotateZ(Math.PI / 2), M.metal, grip, 0, -.003, z);   // pins
-    mk(new THREE.TorusGeometry(o.ring, 0.008, 10, 26).rotateY(Math.PI / 2), M.metal, m, 0, -.006, o.ringZ);
-    mk(new THREE.TorusGeometry(o.ring - .006, 0.0022, 6, 20).rotateY(Math.PI / 2), vmAccent, m, 0, -.006, o.ringZ);
+    mk(handleGeo(o.grip, 0.014, -0.017, 3, 0.019), o.hmat, grip, 0, -.002, .012);
+    for (const z of [.03, o.grip - .006]) pin(grip, z);
+    mk(new THREE.TorusGeometry(o.ring, 0.0085, 12, 30).rotateY(Math.PI / 2), steel, m, 0, -.006, o.ringZ);
     return g;
   };
-  // KARAMBIT: wide claw with a fat belly (spine curves down to the tip, inner edge concave)
   out.karambit = ringKnife({
     blade: [['m', 0, 0.017], ['q', 0.075, 0.03, 0.125, -0.045], ['l', 0.118, -0.05], ['q', 0.07, -0.006, 0, -0.017], ['l', 0, 0.017]],
     edge: [['m', 0.012, -0.012], ['q', 0.07, -0.002, 0.117, -0.047], ['q', 0.068, -0.01, 0.012, -0.017], ['l', 0.012, -0.012]],
-    grip: 0.1, ring: 0.026, ringZ: 0.142, jimp: false,
+    grip: 0.1, ring: 0.026, ringZ: 0.142, jimp: false, hmat: H.g10,
   });
-  // TALON: bigger, deeper curve, jimped spine, longer grip
   out.talon = ringKnife({
     blade: [['m', 0, 0.02], ['q', 0.1, 0.042, 0.158, -0.06], ['l', 0.15, -0.066], ['q', 0.088, -0.006, 0, -0.019], ['l', 0, 0.02]],
     edge: [['m', 0.012, -0.014], ['q', 0.09, -0.002, 0.15, -0.062], ['q', 0.086, -0.011, 0.012, -0.019], ['l', 0.012, -0.014]],
-    grip: 0.12, ring: 0.03, ringZ: 0.164, jimp: true, jimpY: 0.024,
+    grip: 0.12, ring: 0.03, ringZ: 0.164, jimp: true, jimpY: 0.024, hmat: H.talon,
   });
-  // BUTTERFLY: blade + two handle halves hinged at the blade base (open = behind, closed = folded over the blade)
+  // BUTTERFLY: blade + two skeletonised steel handle halves hinged at the blade base
   {
     const g = new THREE.Group();
     mk(bladeGeo([['m', 0, 0.011], ['l', 0.135, 0.011], ['l', 0.172, 0], ['q', 0.12, -0.018, 0, -0.013], ['l', 0, 0.011]]), M.metal, g, 0, 0, 0);
-    box(g, .0095, .004, .12, vmAccent, 0, .004, -.075);
+    mk(bladeGeo([['m', 0.01, -0.006], ['q', 0.12, -0.014, 0.168, 0.0], ['q', 0.12, -0.02, 0.01, -0.012], ['l', 0.01, -0.006]], 0.0095), edge, g, 0, 0, 0);
     const hA = new THREE.Group(), hB = new THREE.Group(); hA.position.set(0.0075, 0, 0); hB.position.set(-0.0075, 0, 0); g.add(hA, hB);
     for (const [h, s] of [[hA, 1], [hB, -1]]) {
-      box(h, .006, .024, .12, M.body, 0, 0, .06); box(h, .0065, .006, .1, M.dark, 0, .0, .06);
-      for (let i = 0; i < 5; i++) box(h, .007, .02, .004, M.dark, 0, 0, .02 + i * .02);
-      mk(new THREE.CylinderGeometry(.006, .006, .007, 10).rotateZ(Math.PI / 2), M.metal, h, 0, 0, 0);
-      if (s > 0) box(h, .005, .01, .02, vmAccent, 0, 0, .125);   // latch
+      box(h, .006, .007, .124, steel, 0, .0085, .062); box(h, .006, .007, .124, steel, 0, -.0085, .062);   // open-frame rails
+      for (let i = 0; i < 5; i++) box(h, .0062, .017, .006, black, 0, 0, .018 + i * .022);                   // cross ribs
+      box(h, .0065, .024, .012, steel, 0, 0, .124);                                                         // end cap
+      mk(new THREE.CylinderGeometry(.006, .006, .007, 12).rotateZ(Math.PI / 2), steel, h, 0, 0, 0);
+      if (s > 0) box(h, .005, .01, .02, black, 0, 0, .135);                                                // latch
     }
     g.userData.handles = [hA, hB];
     out.butterfly = g;
   }
-  // BAYONET: long clip point, fuller groove, crossguard, ribbed grip, pommel
+  // BAYONET: long clip point with a polished fuller, crossguard, contoured rubber grip, pommel
   {
     const g = new THREE.Group();
     mk(bladeGeo([['m', 0, 0.015], ['l', 0.2, 0.015], ['l', 0.27, 0], ['q', 0.2, -0.02, 0, -0.016], ['l', 0, 0.015]], 0.009), M.metal, g, 0, 0, 0);
-    box(g, .0105, .004, .17, vmAccent, 0, .005, -.1);
-    box(g, .02, .07, .012, M.metal, 0, -.002, .006);
-    box(g, .026, .034, .11, M.body, 0, -.002, .066); for (let i = 0; i < 5; i++) box(g, .029, .036, .005, M.dark, 0, -.002, .022 + i * .02);
-    box(g, .03, .038, .02, M.metal, 0, -.002, .128);
+    box(g, .0102, .004, .16, edge, 0, .005, -.095);
+    box(g, .022, .07, .012, steel, 0, -.002, .006);
+    mk(handleGeo(.105, .016, -.018, 4, .023), H.rubber, g, 0, -.002, .014);
+    box(g, .031, .04, .02, steel, 0, -.002, .126);
     out.bayonet = g;
   }
-  // FLIP KNIFE: drop point with a thumb hole, slab handle, pivot bolster
+  // FLIP KNIFE: drop point with a thumb hole, walnut scales on a steel liner, pivot bolster
   {
     const g = new THREE.Group();
     mk(bladeGeo([['m', 0, 0.016], ['l', 0.15, 0.016], ['q', 0.2, 0.012, 0.205, -0.002], ['q', 0.13, -0.022, 0, -0.016], ['l', 0, 0.016]], 0.008, [[0.028, 0.004, 0.0065]]), M.metal, g, 0, 0, 0);
-    box(g, .009, .003, .11, vmAccent, 0, -.011, -.09);
-    box(g, .022, .034, .12, M.body, 0, -.002, .062); box(g, .024, .01, .1, M.dark, 0, .008, .062);
-    mk(new THREE.CylinderGeometry(.012, .012, .026, 12).rotateZ(Math.PI / 2), M.metal, g, 0, 0, .004);
+    mk(bladeGeo([['m', 0.04, -0.011], ['q', 0.13, -0.02, 0.2, -0.003], ['q', 0.13, -0.025, 0.04, -0.015], ['l', 0.04, -0.011]], 0.0085), edge, g, 0, 0, 0);
+    mk(handleGeo(.118, .015, -.016, 0, .022), H.walnut, g, 0, -.002, .008);
+    box(g, .0235, .003, .12, steel, 0, .0145, .066);                                           // liner along the spine
+    for (const z of [.03, .1]) pin(g, z);
+    mk(new THREE.CylinderGeometry(.012, .012, .027, 16).rotateZ(Math.PI / 2), steel, g, 0, 0, .004);
     out.flip = g;
   }
-  // HUNTSMAN: big clip point, sawback teeth along the spine, finger guard, ribbed grip
+  // HUNTSMAN: big clip point, sawback spine, finger guard, walnut grip, steel pommel
   {
     const g = new THREE.Group();
     const spine = [['m', 0, 0.02]]; for (let i = 0; i < 7; i++) { spine.push(['l', 0.03 + i * 0.016, 0.026]); spine.push(['l', 0.038 + i * 0.016, 0.02]); }
     mk(bladeGeo([...spine, ['l', 0.2, 0.02], ['l', 0.25, 0.003], ['q', 0.17, -0.03, 0, -0.02], ['l', 0, 0.02]], 0.01), M.metal, g, 0, 0, 0);
-    box(g, .0115, .003, .17, vmAccent, 0, -.016, -.1);
-    box(g, .02, .02, .012, M.metal, 0, -.026, .006); box(g, .022, .056, .012, M.metal, 0, -.004, .006);   // finger guard
-    box(g, .026, .036, .11, M.body, 0, -.003, .067); for (let i = 0; i < 6; i++) box(g, .029, .038, .004, M.dark, 0, -.003, .02 + i * .018);
-    box(g, .03, .04, .018, M.metal, 0, -.003, .13);
+    mk(bladeGeo([['m', 0.02, -0.014], ['q', 0.17, -0.026, 0.245, 0.0], ['q', 0.17, -0.032, 0.02, -0.019], ['l', 0.02, -0.014]], 0.0105), edge, g, 0, 0, 0);
+    box(g, .02, .02, .012, steel, 0, -.026, .006); box(g, .022, .056, .012, steel, 0, -.004, .006);   // finger guard
+    mk(handleGeo(.108, .017, -.018, 4, .024), H.walnutD, g, 0, -.003, .014);
+    for (const z of [.035, .09]) pin(g, z, -.003, .033);
+    box(g, .031, .042, .018, steel, 0, -.003, .13);
     out.huntsman = g;
   }
-  // STILETTO: long needle blade on a pivot (folds into the handle), slim handle with steel caps
+  // STILETTO: long needle blade on a pivot (folds into the handle), slim black-pearl handle with steel caps
   {
     const g = new THREE.Group(), fold = new THREE.Group(); g.add(fold);
     mk(bladeGeo([['m', 0, 0.009], ['l', 0.16, 0.007], ['l', 0.21, 0], ['l', 0.16, -0.007], ['l', 0, -0.009], ['l', 0, 0.009]], 0.006), M.metal, fold, 0, 0, 0);
-    box(fold, .0075, .002, .15, vmAccent, 0, 0, -.085);
-    box(g, .018, .026, .13, M.body, 0, 0, .066); box(g, .02, .02, .11, M.dark, 0, -.001, .066);
-    box(g, .02, .028, .014, M.metal, 0, 0, .004); box(g, .02, .028, .016, M.metal, 0, 0, .132);
-    box(g, .006, .008, .02, vmAccent, .011, .006, .04);   // release button
+    box(fold, .0072, .002, .15, edge, 0, 0, -.085);
+    mk(handleGeo(.128, .012, -.012, 0, .017), H.pearl, g, 0, 0, .008);
+    box(g, .021, .028, .014, steel, 0, 0, .004); box(g, .021, .028, .016, steel, 0, 0, .134);
+    box(g, .006, .008, .02, steel, .012, .006, .04);                                           // release button
     g.userData.fold = fold;
     out.stiletto = g;
   }
-  // GUT KNIFE: drop point with a hook notch in the spine, rubber grip
+  // GUT KNIFE: drop point with a gut hook, olive rubber grip with finger grooves
   {
     const g = new THREE.Group();
     mk(bladeGeo([['m', 0, 0.018], ['l', 0.065, 0.018], ['l', 0.075, 0.006], ['q', 0.092, -0.002, 0.104, 0.016], ['l', 0.16, 0.013], ['l', 0.2, 0], ['q', 0.12, -0.024, 0, -0.018], ['l', 0, 0.018]], 0.0095), M.metal, g, 0, 0, 0);
-    box(g, .011, .003, .12, vmAccent, 0, -.013, -.08);
-    box(g, .022, .04, .012, M.metal, 0, -.002, .006);
-    box(g, .026, .034, .115, M.body, 0, -.003, .068); for (let i = 0; i < 4; i++) box(g, .028, .006, .012, M.dark, 0, -.02, .03 + i * .025);
+    mk(bladeGeo([['m', 0.03, -0.012], ['q', 0.13, -0.022, 0.195, -0.002], ['q', 0.12, -0.028, 0.03, -0.016], ['l', 0.03, -0.012]], 0.01), edge, g, 0, 0, 0);
+    box(g, .022, .04, .012, steel, 0, -.002, .006);
+    mk(handleGeo(.112, .015, -.017, 3, .023), H.olive, g, 0, -.003, .013);
     out.gut = g;
   }
-  // SKELETON: drop point, open-frame handle (two rails + a gap), paracord wrap, ring pommel
+  // SKELETON: drop point, open steel frame handle with a red paracord wrap, ring pommel
   {
     const g = new THREE.Group();
     mk(bladeGeo([['m', 0, 0.016], ['l', 0.13, 0.016], ['q', 0.18, 0.012, 0.19, -0.002], ['q', 0.12, -0.022, 0, -0.016], ['l', 0, 0.016]], 0.009), M.metal, g, 0, 0, 0);
-    box(g, .0105, .003, .12, vmAccent, 0, -.011, -.08);
-    for (const y of [.012, -.016]) box(g, .012, .007, .12, M.metal, 0, y, .068);              // frame rails
-    for (let i = 0; i < 7; i++) box(g, .016, .034, .007, M.body, 0, -.002, .02 + i * .014);   // cord wraps
-    mk(new THREE.TorusGeometry(.017, .005, 8, 20).rotateY(Math.PI / 2), M.metal, g, 0, -.002, .145);
+    mk(bladeGeo([['m', 0.03, -0.011], ['q', 0.12, -0.02, 0.185, -0.003], ['q', 0.12, -0.025, 0.03, -0.015], ['l', 0.03, -0.011]], 0.0095), edge, g, 0, 0, 0);
+    for (const y of [.012, -.016]) box(g, .012, .007, .124, steel, 0, y, .068);
+    for (let i = 0; i < 8; i++) mk(new THREE.CylinderGeometry(.0105, .0105, .0078, 10).rotateX(Math.PI / 2), H.cord, g, 0, -.002, .02 + i * .0125).scale.set(1, 1.55, 1);
+    mk(new THREE.TorusGeometry(.017, .0055, 10, 22).rotateY(Math.PI / 2), steel, g, 0, -.002, .146);
     out.skeleton = g;
   }
-  // PLASMA EDGE: hilt with emitter rings; the beam extends from the emitter (scale) and glows
+  // PLASMA EDGE: hilt with emitter rings; the beam extends from the emitter (scale) and glows (its look is the glow: kept)
   {
     const g = new THREE.Group(), beam = new THREE.Group(); g.add(beam);
-    mk(new THREE.CylinderGeometry(.016, .018, .13, 14).rotateX(Math.PI / 2), M.body, g, 0, 0, .066);
-    for (let i = 0; i < 3; i++) mk(new THREE.CylinderGeometry(.019, .019, .006, 14).rotateX(Math.PI / 2), M.dark, g, 0, 0, .03 + i * .03);
-    mk(new THREE.CylinderGeometry(.022, .016, .02, 14).rotateX(Math.PI / 2), M.metal, g, 0, 0, -.002);
-    mk(new THREE.CylinderGeometry(.021, .021, .004, 14).rotateX(Math.PI / 2), vmAccent, g, 0, 0, -.013);
+    mk(new THREE.CylinderGeometry(.016, .018, .13, 16).rotateX(Math.PI / 2), black, g, 0, 0, .066);
+    for (let i = 0; i < 3; i++) mk(new THREE.CylinderGeometry(.019, .019, .006, 16).rotateX(Math.PI / 2), steel, g, 0, 0, .03 + i * .03);
+    mk(new THREE.CylinderGeometry(.022, .016, .02, 16).rotateX(Math.PI / 2), steel, g, 0, 0, -.002);
+    mk(new THREE.CylinderGeometry(.021, .021, .004, 16).rotateX(Math.PI / 2), vmAccent, g, 0, 0, -.013);
     const core = new THREE.Mesh(new THREE.BoxGeometry(.008, .012, .23).translate(0, 0, -.115), new THREE.MeshBasicMaterial({ color: 0xffffff }));
     const glow = new THREE.Mesh(new THREE.BoxGeometry(.016, .022, .24).translate(0, 0, -.12), new THREE.MeshBasicMaterial({ color: 0x00e5ff, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false }));
     beam.add(core, glow); beam.position.z = -.014;
@@ -11600,7 +11639,7 @@ const vmAccent = new THREE.MeshStandardMaterial({ color: 0x00e5ff, emissive: 0x0
   B(kn, .05, .09, .025, dark, 0, -.005, -.06); B(kn, .052, .012, .028, vmAccent, 0, .035, -.06);    // guard
   B(kn, .034, .05, .14, body, 0, -.005, .03); for (let i = 0; i < 4; i++) B(kn, .038, .054, .012, dark, 0, -.005, -.02 + i * .03);   // wrapped grip
   B(kn, .04, .056, .03, metal, 0, -.005, .11);
-  kn.rotation.set(0.25, -0.12, -0.55); kn.position.set(0.06, -0.05, 0.06); kn.scale.setScalar(0.78);
+  kn.rotation.set(0.5, -0.3, -0.24); kn.position.set(-0.01, 0.01, 0.02); kn.scale.setScalar(0.85);   // raised into view, blade tilted up so you see it
   kn.userData.muzzle = V3(0, 0, -.38);
   vm.knifePivot = new THREE.Group(); kn.add(vm.knifePivot);
   const classic = new THREE.Group(); while (kn.children.length > 1) classic.add(kn.children[0]); vm.knifePivot.add(classic);
