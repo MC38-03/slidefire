@@ -1433,6 +1433,19 @@ const SFX = (() => {
     stasis: { bus: 'gun', rev: 0.6, l: [{ type: 'sine', f: 300, f2: 1400, dur: 0.4, g: 0.25, sweep: 0.35 }, { type: 'triangle', f: 1500, f2: 700, dur: 0.5, g: 0.08 }, ...bell(2400, 0.06, 0.6)] },
     locust: { bus: 'gun', rev: 0.25, l: [{ n: 1, ft: 'bandpass', f: 1200, f2: 2600, q: 1, dur: 0.3, g: 0.7 }, { type: 'sawtooth', f: 400, f2: 1400, dur: 0.25, g: 0.06, sweep: 0.2 }, { type: 'sine', f: 140, f2: 60, dur: 0.15, g: 0.7 }] },
     lockon: { l: [{ type: 'square', f: 1760, dur: 0.05, g: 0.08 }, { type: 'square', f: 2350, dur: 0.07, g: 0.08, delay: 0.08 }] },
+    // ---- HAMMERFALL ----
+    hWind: { bus: 'gun', rev: 0.1, l: [{ n: 1, ft: 'bandpass', f: 300, f2: 900, q: 1.4, dur: 0.18, g: 0.35 }] },
+    hSwing: { bus: 'gun', rev: 0.2, l: [{ n: 1, ft: 'bandpass', f: 1400, f2: 350, q: 1.2, dur: 0.22, g: 0.75 }, { type: 'sine', f: 140, f2: 70, dur: 0.12, g: 0.35 }] },
+    hHit: { bus: 'gun', rev: 0.3, l: [{ n: 1, ft: 'highpass', f: 2500, dur: 0.02, g: 0.6 }, { type: 'sine', f: 120, f2: 38, dur: 0.3, g: 1.5, sweep: 0.08 }, { n: 1, ft: 'bandpass', f: 900, f2: 250, q: 0.9, dur: 0.18, g: 0.9 }, ...bell(700, 0.05, 0.25)] },
+    hSweet: { bus: 'gun', rev: 0.55, l: [{ n: 1, ft: 'highpass', f: 2200, dur: 0.035, g: 1.3, a: 0.0004 }, { type: 'sine', f: 85, f2: 26, dur: 0.75, g: 2.0, sweep: 0.1 }, { s: 'boom', g: 0.9, rate: 0.75 }, { n: 1, ft: 'bandpass', f: 700, f2: 160, q: 0.8, dur: 0.35, g: 1.3 }, ...bell(1500, 0.1, 0.6), { type: 'square', f: 90, f2: 40, dur: 0.2, g: 0.25 }] },
+    hUpper: { bus: 'gun', rev: 0.35, l: [{ n: 1, ft: 'bandpass', f: 300, f2: 2800, q: 1.3, dur: 0.28, g: 0.8 }, { type: 'sine', f: 90, f2: 260, dur: 0.22, g: 0.9, sweep: 0.2 }, { n: 1, ft: 'highpass', f: 2600, dur: 0.03, g: 0.7, delay: 0.12 }, { type: 'sine', f: 140, f2: 50, dur: 0.25, g: 1.0, delay: 0.12 }] },
+    hWhirl: { bus: 'gun', rev: 0.3, l: [{ n: 1, ft: 'bandpass', f: 500, f2: 1600, q: 1.5, dur: 0.16, g: 0.7 }, { n: 1, ft: 'bandpass', f: 600, f2: 1800, q: 1.5, dur: 0.16, g: 0.7, delay: 0.13 }, { n: 1, ft: 'bandpass', f: 700, f2: 2000, q: 1.5, dur: 0.18, g: 0.75, delay: 0.26 }, { type: 'sine', f: 110, f2: 60, dur: 0.3, g: 0.6 }] },
+    hLeap: { bus: 'gun', rev: 0.45, l: [{ type: 'sine', f: 60, f2: 30, dur: 0.35, g: 1.4 }, { n: 1, ft: 'lowpass', f: 1200, f2: 300, dur: 0.3, g: 0.9 }, { type: 'sine', f: 220, f2: 900, dur: 0.45, g: 0.25, sweep: 0.4 }, { n: 1, ft: 'bandpass', f: 400, f2: 2200, q: 1, dur: 0.5, g: 0.5 }] },
+    hDive: { bus: 'gun', rev: 0.4, l: [{ type: 'sine', f: 1900, f2: 380, dur: 0.55, g: 0.22, sweep: 0.5 }, { n: 1, ft: 'bandpass', f: 2400, f2: 600, q: 2, dur: 0.5, g: 0.5 }] },
+    hLand: { bus: 'gun', rev: 0.7, l: [{ n: 1, ft: 'highpass', f: 1800, dur: 0.04, g: 1.4, a: 0.0004 }, { type: 'sine', f: 62, f2: 20, dur: 1.0, g: 2.4, sweep: 0.12 }, { s: 'boom', g: 1.1, rate: 0.62 }, { s: 'boom', g: 0.6, rate: 0.9, delay: 0.05 }, { n: 1, ft: 'lowpass', f: 900, f2: 120, dur: 0.9, g: 1.1, a: 0.01 }, { type: 'square', f: 70, f2: 30, dur: 0.3, g: 0.3 }, { n: 1, ft: 'bandpass', f: 3000, q: 3, dur: 0.03, g: 0.3, delay: 0.25 }, { n: 1, ft: 'bandpass', f: 2600, q: 3, dur: 0.03, g: 0.25, delay: 0.38 }, { n: 1, ft: 'bandpass', f: 3400, q: 3, dur: 0.03, g: 0.2, delay: 0.5 }] },
+    hThrow: { bus: 'gun', rev: 0.3, l: [{ n: 1, ft: 'bandpass', f: 700, f2: 1500, q: 1.6, dur: 0.15, g: 0.6 }, { n: 1, ft: 'bandpass', f: 800, f2: 1600, q: 1.6, dur: 0.15, g: 0.5, delay: 0.14 }, { n: 1, ft: 'bandpass', f: 900, f2: 1700, q: 1.6, dur: 0.15, g: 0.4, delay: 0.28 }, { type: 'sine', f: 180, f2: 90, dur: 0.2, g: 0.5 }] },
+    hThrowHit: { bus: 'gun', rev: 0.4, l: [...bell(1300, 0.12, 0.5), { type: 'sine', f: 130, f2: 45, dur: 0.3, g: 1.3 }, { n: 1, ft: 'highpass', f: 2500, dur: 0.03, g: 0.8 }] },
+    hCatch: { bus: 'gun', rev: 0.25, l: [...bell(900, 0.07, 0.3), { type: 'sine', f: 160, f2: 80, dur: 0.15, g: 0.8 }, { n: 1, ft: 'bandpass', f: 1500, q: 2, dur: 0.05, g: 0.5 }] },
     turret: { bus: 'gun', rev: 0.1, l: [...gun({ mech: 0, body: 3000, bodyDur: 0.035, bodyG: 0.5, sub: 190, subDur: 0.06, subG: 0.4, mid: 700, midDur: 0.025, tail: 2800, tailDur: 0.1, tailG: 0.15 })] },
     rifle: { bus: 'gun', rev: 0.18, l: [...gun({ body: 2400, bodyDur: 0.08, sub: 135, mid: 320, tail: 2200, tailDur: 0.25 }), ...casing()] },
     smg: { bus: 'gun', rev: 0.12, l: [...gun({ mechF: 2800, mech: 0.18, mechD: 0.022, body: 3200, bodyDur: 0.05, bodyG: 0.75, sub: 160, subDur: 0.1, subG: 0.75, mid: 420, midDur: 0.04, tail: 2600, tailDur: 0.16, tailG: 0.25 }), ...casing(0.28, 4800)] },
@@ -4137,7 +4150,7 @@ const Arms = (() => {
     strike: { still: true, life: 1.5, splash: 5.5, dmg: 150, self: 0.5, knock: 9, knockSelf: 9, color: 0xff3030, beam: true },
     slam: { splash: 6, dmg: 75, self: 0, knock: 16, knockSelf: 0, lift: 2.2, color: 0x6a8cff },
     tslam: { splash: 5.5, dmg: 110, self: 0, knock: 17, knockSelf: 0, lift: 2.0, color: 0xffb020 },   // HAMMERFALL air slam
-    tdash: { splash: 3.8, dmg: 105, self: 0, knock: 15, knockSelf: 0, lift: 1.5, color: 0xffb020 },   // HAMMERFALL slam-dash landing
+    tdash: { splash: 4.5, dmg: 105, self: 0, knock: 16, knockSelf: 0, lift: 1.7, color: 0xffb020 },   // HAMMERFALL leap-slam landing
   };
   const FX = ['stasis', 'turret'];
   const STASIS = { r: 6.5, life: 3.5, cap: 3.5, capY: 2.5 };
@@ -4327,9 +4340,9 @@ const Arms = (() => {
       }
     }
     if (p.slam && (p.onGround || time - p.slamT > 3)) {   // GRAVITY MAUL: the slam lands
-      p.slam = false;
+      p.slam = false; p.slamDone = p.slamKind; p.slamKind = null;
       if (p.onGround) {
-        if (WEAPONS[p.weapon] && WEAPONS[p.weapon].titan) titanBoom(p, 'tslam', p.pos.clone().add(_b.set(0, 0.4, 0)));
+        if (WEAPONS[p.weapon] && WEAPONS[p.weapon].titan) { titanBoom(p, p.slamDone === 'leap' ? 'tdash' : 'tslam', p.pos.clone().add(_b.set(0, p.slamDone === 'leap' ? 0.9 : 0.6, 0))); p.vel.x *= 0.1; p.vel.z *= 0.1; }   /* the impact stops you dead */
         else { const m = { t: 'x', k: 'slam', w: W_MAUL, id: p.id, rid: p.id + '_s' + (seq++), p: arr(p.pos.clone().add(_b.set(0, 0.4, 0))) }; explode(m); send(m); }
         if (p === me) shakeAmt += 0.9;
       }
@@ -4338,6 +4351,7 @@ const Arms = (() => {
   // per-frame weapon extras for owned players (alt = the right mouse button is down)
   function tick(p, dt, alt) {
     const w = WEAPONS[p.weapon];
+    if (p.slam && p.slamKind === 'leap' && p.vel.y < 0) p.vel.y -= 26 * dt;   // LEAP: drop like a rock after the apex
     if (w && w.titan) {
       if (p.bot) alt = botWantsDash(p);
       if (alt && !p.altLock) { p.altLock = true; titanDash(p); }
@@ -4421,7 +4435,7 @@ const Arms = (() => {
   }
   const tMuzzle = t => t.head.localToWorld(V3(0, -0.05, -0.62));
   function update(dt) {
-    aimPreview();
+    aimPreview(); updateThrows(dt); updateWaves(dt);
     for (let i = bubbles.length - 1; i >= 0; i--) {
       const b = bubbles[i]; b.life -= dt;
       const grow = clamp((STASIS.life - b.life) / 0.25, 0, 1), fade = clamp(b.life / 0.4, 0, 1);
@@ -4504,6 +4518,8 @@ const Arms = (() => {
     for (const t of turrets) scene.remove(t.g);
     for (const b of bubbles) scene.remove(b.mesh);
     turrets.length = bubbles.length = 0;
+    while (throws.length) endThrow(throws.length - 1, false);
+    for (const w of waves) scene.remove(w.m); waves.length = 0;
   }
   function warmObjects() {
     const ring = projMesh({ k: 'strike' }, PROJ.strike);
@@ -4527,83 +4543,243 @@ const Arms = (() => {
   }
 
   // =================== HAMMERFALL: the TITAN HAMMER ===================
-  const TITAN = { reach: 2.7, R: 2.4, sweet: 0.5, max: 100, edge: 25, dashLen: 9, dashT: 0.2, dashCD: 2.5 };
-  // where a swing lands: in front of you at chest height, pulled in by walls
-  function swingCenter(p, out) {
-    const pitch = clamp(p.pitch, -0.55, 0.35), yaw = p.yaw;
+  // Moves: SWING (ground) · UPPERCUT (look up) · WHIRLWIND (any swing in the air) · THOR DIVE (look down in the air)
+  //        LEAP SLAM (RMB: spin up, hammer overhead, crash down where you aim) · THROW (G: flies out, comes back)
+  // Every move has its own eased animation (titanPose), trail, impact effects and sound.
+  const TITAN = { reach: 2.7, R: 2.4, sweet: 0.5, leapCD: 2.5, throwCD: 4 };
+  const ease = { out: k => 1 - Math.pow(1 - clamp(k, 0, 1), 3), inOut: k => { k = clamp(k, 0, 1); return k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2; } };
+  function setAnim(p, k) { p.tAnim = k; p.tAnimT = time; }
+  // where a ground swing lands: in front of you at chest height, pulled in by walls
+  function swingCenter(p, out, ahead = TITAN.reach, lo = -0.55, hi = 0.35) {
+    const pitch = clamp(p.pitch, lo, hi), yaw = p.yaw;
     const d = _c.set(-Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), -Math.cos(yaw) * Math.cos(pitch));
     const o = _a.set(p.pos.x, p.pos.y + 1.15, p.pos.z);
-    ray.set(o, d); ray.far = TITAN.reach;
+    ray.set(o, d); ray.far = ahead;
     const h = ray.intersectObjects(World.rayMeshes, false)[0];
-    return out.copy(o).addScaledVector(d, h ? Math.max(0.6, h.distance - 0.2) : TITAN.reach);
+    return out.copy(o).addScaledVector(d, h ? Math.max(0.6, h.distance - 0.2) : ahead);
   }
-  function titanFire(p, w, o, d) {
-    // look down in the air = AIR SLAM (dive + shockwave)
-    if (!p.onGround && p.pitch < -0.45 && heightAboveGround(p) > 1.4) {
-      p.slam = true; p.slamT = time; p.vel.set(p.vel.x * 0.3, -36, p.vel.z * 0.3);
-      if (p === me) { SFX.play('maul'); shakeAmt += 0.2; }
-      send({ t: 'f', id: p.id, w: p.weapon, e: [] });
-      return true;
-    }
-    const C = swingCenter(p, V3());
-    let sweetHit = false;
+  // damage everyone in a sphere: falloff from the centre; an optional sweet spot = 100 (a kill)
+  function area(p, C, R, sweetR, maxD, edgeD, kbHi, kbLo, upHi, upLo) {
+    let hits = 0, sweet = false;
+    const eye = V3(p.pos.x, p.pos.y + 1.15, p.pos.z);
     for (const q of players.values()) {
       if (!q.alive || q === p || allies(p, q)) continue;
       const c = chestPos(q, V3()), dist = c.distanceTo(C);
-      if (dist > TITAN.R + 0.35 || !hasLOS(_b.set(p.pos.x, p.pos.y + 1.15, p.pos.z), c)) continue;
-      const sweet = dist <= TITAN.sweet;
-      const f = clamp((dist - TITAN.sweet) / (TITAN.R - TITAN.sweet), 0, 1);
-      const dmg = sweet ? TITAN.max : Math.round(lerp(85, TITAN.edge, f));   // dead-centre kills, off-centre 85 -> 25
-      dealDamage(p, q.id, dmg, { w: W_TITAN, h: false, c: false, air: !p.onGround, dist: r2(p.pos.distanceTo(q.pos)), kb: sweet ? 15 : lerp(12, 6, f), kbUp: sweet ? 8 : lerp(6.5, 4, f), sw: sweet ? 1 : 0 }, c);
-      if (sweet) sweetHit = true;
+      if (dist > R + 0.35 || !hasLOS(eye, c)) continue;
+      const sw = sweetR > 0 && dist <= sweetR, f = clamp((dist - sweetR) / (R - sweetR), 0, 1);
+      const dmg = sw ? 100 : Math.round(lerp(sweetR > 0 ? 85 : maxD, edgeD, f));
+      dealDamage(p, q.id, dmg, { w: W_TITAN, h: false, c: false, air: !p.onGround, dist: r2(p.pos.distanceTo(q.pos)), kb: sw ? kbHi + 3 : lerp(kbHi, kbLo, f), kbUp: sw ? upHi + 2 : lerp(upHi, upLo, f) }, c);
+      hits++; if (sw) sweet = true;
     }
-    if (sweetHit && p === me) { showHitmarker('crit kill', 0.4); SFX.play('crit'); shakeAmt += 0.25; }
-    titanFx(C, sweetHit);
-    send({ t: 'f', id: p.id, w: p.weapon, e: [arr(C), sweetHit ? 1 : 0] });
-    return true;   // handled here (fire() then just runs the swing animation + sound)
+    return { hits, sweet };
   }
-  // a slam / dash landing: blast through the normal explosion path (every client applies it to the players it owns)
+  const shout = (p, an, C, hit, sweet, R) => send({ t: 'f', id: p.id, w: p.weapon, e: C ? [arr(C), sweet ? 1 : 0, hit ? 1 : 0] : [], an, r: R });
+  function titanFire(p, w, o, d) {
+    if (p.hThrown) return true;                                                   // nothing in your hands
+    const air = !p.onGround;
+    if (air && p.pitch < -0.45 && heightAboveGround(p) > 1.4) {                     // THOR DIVE
+      p.slam = true; p.slamT = time; p.slamKind = 'dive'; p.vel.set(p.vel.x * 0.3, -38, p.vel.z * 0.3);
+      setAnim(p, 'dive'); startFx(p, 'dive'); shout(p, 'dive');
+      return true;
+    }
+    if (air) {                                                                     // WHIRLWIND: 360° spin, hits all around
+      const C = V3(p.pos.x, p.pos.y + 1.1, p.pos.z), r = area(p, C, 3.3, 0, 60, 25, 12, 7, 6.5, 5);
+      p.vel.y = Math.max(p.vel.y, 3.5);
+      setAnim(p, 'whirl'); titanFx(C, false, 3.3, 'whirl', r.hits > 0); shout(p, 'whirl', C, r.hits > 0, false, 3.3);
+      return true;
+    }
+    if (p.pitch > 0.42) {                                                          // UPPERCUT: launches them straight up
+      const C = swingCenter(p, V3(), 1.9, -0.2, 0.25), r = area(p, C, 2.1, 0, 45, 20, 3, 2, 16, 12);
+      setAnim(p, 'upper'); titanFx(C, false, 2.1, 'upper', r.hits > 0); shout(p, 'upper', C, r.hits > 0, false, 2.1);
+      return true;
+    }
+    const C = swingCenter(p, V3()), r = area(p, C, TITAN.R, TITAN.sweet, 100, 25, 12, 6, 6, 4);   // SWING
+    if (r.sweet && p === me) { showHitmarker('crit kill', 0.4); shakeAmt += 0.3; }
+    setAnim(p, 'swing'); titanFx(C, r.sweet, TITAN.R, 'swing', r.hits > 0); shout(p, 'swing', C, r.hits > 0, r.sweet, TITAN.R);
+    return true;
+  }
+  // LEAP SLAM: launch up + toward where you aim, spin, hammer overhead, crash down (landing ON someone kills)
+  function titanDash(p) {
+    if (!p.alive || time < (p.tdashCD || 0) || p.slam || p.hThrown) return;
+    p.tdashCD = time + TITAN.leapCD;
+    const fx = -Math.sin(p.yaw), fz = -Math.cos(p.yaw);
+    let dist = 11;                                                                 // how far: where the crosshair meets the ground (4..13 m)
+    if (p.bot && p.ai && p.ai.target && p.ai.target.alive) dist = clamp(Math.hypot(p.ai.target.pos.x - p.pos.x, p.ai.target.pos.z - p.pos.z), 4, 13);
+    else {
+      const pitch = Math.min(p.pitch, -0.05), dd = V3(fx * Math.cos(pitch), Math.sin(pitch), fz * Math.cos(pitch));
+      ray.set(V3(p.pos.x, p.pos.y + 1.6, p.pos.z), dd); ray.far = 16;
+      const h = ray.intersectObjects(World.rayMeshes, false)[0];
+      if (h) dist = clamp(Math.hypot(h.point.x - p.pos.x, h.point.z - p.pos.z), 4, 13);
+    }
+    const up = p.onGround ? 12 : 8.5, T = up / 24 + Math.sqrt(2 * (up * up / 48) / 50);   // rise at normal gravity, fall heavy
+    p.vel.set(fx * dist / T, up, fz * dist / T); p.onGround = false; p.sliding = false;
+    p.slam = true; p.slamT = time; p.slamKind = 'leap';
+    setAnim(p, 'leap'); startFx(p, 'leap'); shout(p, 'leap');
+  }
+  // slam / leap landing: a blast through the normal explosion path; onBoom (every client) does the show
   function titanBoom(p, k, at) {
     const m = { t: 'x', k, w: W_TITAN, id: p.id, rid: p.id + '_t' + (seq++), p: arr(at) };
     explode(m); send(m);
-    if (p === me) shakeAmt += 0.7;
-    titanFx(at, false, k === 'tslam' ? 5.5 : 3.8);
   }
-  function titanDash(p) {
-    if (!p.alive || p.dashT > 0 || time < (p.tdashCD || 0) || p.slam) return;
-    p.tdashCD = time + TITAN.dashCD;
-    const yaw = p.yaw;
-    p.dashDir = V3(-Math.sin(yaw), 0, -Math.cos(yaw)); p.dashT = TITAN.dashT; p.dashV = TITAN.dashLen / TITAN.dashT; p.dashKind = 'titan'; p.dashHit = null;
-    if (p === me) { SFX.play('scythe', 0.8); shakeAmt += 0.15; }
-    send({ t: 'f', id: p.id, w: p.weapon, e: [] });
+  function onBoom(m) {
+    const p = players.get(m.id); if (p) setAnim(p, 'land');
+    const c = V3().fromArray(m.p), P = PROJ[m.k] || PROJ.tslam;
+    titanFx(c, false, P.splash, m.k === 'tdash' ? 'leapland' : 'diveland', true);
   }
-  // bots: slam-dash at someone 4-9 m ahead
+  // ---------- HAMMER THROW: end over end out to ~17 m (or the first wall), then it flies back to your hand ----------
+  const throws = [];
+  function throwHammer(p) {
+    if (!p.alive || p.hThrown || p.slam || time < (p.thrCD || 0)) return;
+    p.thrCD = time + TITAN.throwCD;
+    const pitch = clamp(p.pitch, -0.35, 0.2), d = V3(-Math.sin(p.yaw) * Math.cos(pitch), Math.sin(pitch), -Math.cos(p.yaw) * Math.cos(pitch));
+    const m = { t: 'thr', id: p.id, o: arr(V3(p.pos.x, p.pos.y + 1.4, p.pos.z).addScaledVector(d, 0.8)), d: arr(d) };
+    spawnThrow(m, true); send(m);
+  }
+  function spawnThrow(m, auth) {
+    const p = players.get(m.id); if (!p) return;
+    p.hThrown = true; setAnim(p, 'throw');
+    const g = new THREE.Group(), inner = new THREE.Group();
+    for (const part of avGunParts()[W_TITAN]) inner.add(new THREE.Mesh(part.geo, part.mat));
+    inner.scale.setScalar(2.8); inner.position.z = 0.9; g.add(inner);   // spin around the middle, not the handle end
+    const glow = new THREE.Mesh(new THREE.SphereGeometry(0.45, 12, 8), new THREE.MeshBasicMaterial({ color: 0xffb020, transparent: true, opacity: 0.45, depthWrite: false, blending: THREE.AdditiveBlending }));
+    g.add(glow); scene.add(g);   /* a glowing core so the flying hammer reads at any range */
+    throws.push({ owner: m.id, pos: V3().fromArray(m.o), dir: V3().fromArray(m.d).normalize(), phase: 0, t: 0, spin: 0, hit: new Set(), g, auth });
+    play3D('hThrow', V3().fromArray(m.o), 1);
+  }
+  function endThrow(i, caught) {
+    const th = throws[i]; throws.splice(i, 1); scene.remove(th.g);
+    const p = players.get(th.owner); if (p) { p.hThrown = false; if (caught) { setAnim(p, 'catch'); play3D('hCatch', th.pos, 1); } }
+  }
+  function updateThrows(dt) {
+    for (let i = throws.length - 1; i >= 0; i--) {
+      const th = throws[i], own = players.get(th.owner);
+      if (!own || !own.alive) { endThrow(i, false); continue; }
+      th.t += dt;
+      if (th.phase === 0) {
+        const step = 32 * dt;
+        ray.set(th.pos, th.dir); ray.far = step + 0.5;
+        if (ray.intersectObjects(World.rayMeshes, false).length || th.t > 0.55) { th.phase = 1; th.hit.clear(); if (th.t <= 0.55) { play3D('hThrowHit', th.pos, 0.9); titanFx(th.pos.clone(), false, 1.2, 'clang', false); } }
+        else th.pos.addScaledVector(th.dir, step);
+      } else {
+        const to = chestPos(own, V3()).sub(th.pos), d = to.length();
+        if (d < 1.3 || th.t > 3.5) { endThrow(i, d < 1.3); continue; }
+        th.dir.copy(to.divideScalar(d)); th.pos.addScaledVector(th.dir, Math.min(d, 36 * dt));
+      }
+      th.spin += dt * 20;
+      th.g.position.copy(th.pos); th.g.rotation.set(th.spin, Math.atan2(-th.dir.x, -th.dir.z), 0, 'YXZ');
+      for (let j = 0; j < 3; j++) spawnParticle(th.pos.clone().add(V3(rand(-.3, .3), rand(-.3, .3), rand(-.3, .3))), V3(rand(-1, 1), rand(-1, 1), rand(-1, 1)), j ? 0xffb020 : 0xffffff, 0.22, 0.3, 0, true);
+      if (th.auth) for (const q of players.values()) {
+        if (!q.alive || q === own || allies(own, q) || th.hit.has(q.id)) continue;
+        const c = chestPos(q, V3()); if (c.distanceTo(th.pos) > 1.6) continue;
+        th.hit.add(q.id);
+        dealDamage(own, q.id, th.phase === 0 ? 55 : 40, { w: W_TITAN, h: false, c: false, dist: r2(own.pos.distanceTo(q.pos)), kb: 10, kbUp: 5.5 }, c);
+        play3D('hThrowHit', c, 1); titanFx(c, false, 1.2, 'clang', true);
+      }
+    }
+  }
+  // ---------- effects ----------
+  const waves = [];
+  const waveGeo = new THREE.TorusGeometry(1, 0.07, 6, 48).rotateX(Math.PI / 2);
+  function wave(C, R, color, dur = 0.4) {
+    const m = new THREE.Mesh(waveGeo, new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.9, depthWrite: false, blending: THREE.AdditiveBlending }));
+    m.position.copy(C); m.scale.setScalar(0.2); scene.add(m); waves.push({ m, R, t: 0, dur });
+  }
+  function updateWaves(dt) {
+    for (let i = waves.length - 1; i >= 0; i--) {
+      const w = waves[i]; w.t += dt; const k = w.t / w.dur;
+      if (k >= 1) { scene.remove(w.m); w.m.material.dispose(); waves.splice(i, 1); continue; }
+      w.m.scale.setScalar(0.2 + w.R * ease.out(k)); w.m.material.opacity = 0.9 * (1 - k);
+    }
+  }
+  // start-of-move effects (owner + remote)
+  function startFx(p, kind) {
+    const at = V3(p.pos.x, p.pos.y + 0.2, p.pos.z);
+    if (kind === 'leap') { play3D('hLeap', at, 1); wave(at, 2.2, 0xffd060, 0.3); for (let i = 0; i < 18; i++) spawnParticle(at.clone(), V3(rand(-4, 4), rand(0, 2), rand(-4, 4)), 0xbfb8a8, 0.22, 0.5, 2, false); }
+    if (kind === 'dive') play3D('hDive', at, 1);
+  }
+  // impact effects + sound for every hammer hit / whiff (kind picks the look and the sound)
+  function titanFx(C, sweet, R0, kind = 'swing', hit = false) {
+    const R = R0 || TITAN.R, big = kind === 'leapland' || kind === 'diveland';
+    const snd = big ? 'hLand' : kind === 'whirl' ? 'hWhirl' : kind === 'upper' ? 'hUpper' : kind === 'clang' ? null : sweet ? 'hSweet' : hit ? 'hHit' : 'hSwing';
+    if (snd) play3D(snd, C, 1);
+    if (sweet || (big && hit)) play3D('hSweet', C, big ? 0.7 : 1);
+    const col = sweet ? 0xff5030 : big ? 0xffd060 : 0xffb020;
+    const ground = groundBelow(C, 3); ground.y += 0.1;
+    wave(kind === 'whirl' ? C : ground, R * (big ? 1.15 : 0.9), col, big ? 0.5 : 0.32);
+    const n = big ? 34 : kind === 'whirl' ? 26 : 18;
+    for (let i = 0; i < n; i++) { const a = i / n * Math.PI * 2; spawnParticle(V3(C.x + Math.cos(a) * R * 0.4, C.y, C.z + Math.sin(a) * R * 0.4), V3(Math.cos(a) * R * 3.2, rand(0.5, big ? 5 : 2), Math.sin(a) * R * 3.2), col, big ? 0.16 : 0.12, 0.4, 5, true); }
+    if (big) {
+      for (let i = 0; i < 26; i++) spawnParticle(ground.clone(), V3(rand(-5, 5), rand(3, 9), rand(-5, 5)), Math.random() < 0.5 ? 0x8a8070 : 0x4a443c, rand(0.08, 0.16), rand(0.45, 0.75), 16, false);   // rock + dust
+      wave(ground, R * 0.6, 0xffffff, 0.25);
+      if (typeof flashLight === 'function') flashLight(C, 0xffb040, 5, 0.12);
+    }
+    if (kind === 'upper') for (let i = 0; i < 14; i++) spawnParticle(C.clone(), V3(rand(-1.5, 1.5), rand(6, 12), rand(-1.5, 1.5)), 0xffd060, 0.12, 0.45, 6, true);
+    if (sweet) { for (let i = 0; i < 16; i++) spawnParticle(C.clone(), V3(rand(-5, 5), rand(1, 7), rand(-5, 5)), 0xffffff, 0.1, 0.35, 8, true); if (typeof flashLight === 'function') flashLight(C, 0xff6040, 4, 0.1); }
+    if (me && me.alive) { const d = C.distanceTo(me.pos); if (d < (big ? 14 : 7)) shakeAmt += (big ? 0.9 : sweet ? 0.35 : 0.14) * (1 - d / (big ? 14 : 7)); }
+  }
+  // ---------- animation: eased per-move poses, smoothed, plus a spark trail off the hammer head ----------
+  function headLocal(g) {
+    if (g.userData.head) return g.userData.head;
+    let minZ = 0; g.traverse(o => { if (o.isMesh) { o.geometry.computeBoundingBox(); minZ = Math.min(minZ, o.geometry.boundingBox.min.z); } });
+    return (g.userData.head = V3(0, 0, minZ * 0.85));
+  }
+  function titanPose(p, av, dt) {
+    const g = av.guns[W_TITAN]; if (!g) return;
+    g.visible = !p.hThrown;
+    const k = p.tAnim, t = time - (p.tAnimT || -9), E = ease;
+    let hx = 0.8, spin = 0, lean = 0, trail = false;
+    if (k === 'swing' && t < 0.55) {
+      hx = t < 0.14 ? lerp(0.8, 1.7, E.out(t / 0.14)) : t < 0.3 ? lerp(1.7, -0.9, E.inOut((t - 0.14) / 0.16)) : lerp(-0.9, 0.8, E.out((t - 0.3) / 0.25));
+      lean = t > 0.14 && t < 0.42 ? 0.32 : 0; trail = t > 0.12 && t < 0.32;
+    } else if (k === 'upper' && t < 0.55) {
+      hx = t < 0.12 ? lerp(0.8, -1.0, E.out(t / 0.12)) : t < 0.3 ? lerp(-1.0, 2.2, E.inOut((t - 0.12) / 0.18)) : lerp(2.2, 0.8, E.out((t - 0.3) / 0.25));
+      lean = t < 0.3 ? -0.28 : 0; trail = t > 0.1 && t < 0.32;
+    } else if (k === 'whirl' && t < 0.5) {
+      spin = E.inOut(t / 0.5) * Math.PI * 2; hx = 0.05; lean = 0.15; trail = true;
+    } else if (k === 'leap' && t < 2.5 && p.slam !== false || k === 'leap' && t < 2.5 && !owns(p)) {
+      if (t < 0.5) { spin = E.out(t / 0.5) * Math.PI * 2; hx = lerp(0.1, 0.35, t / 0.5); }
+      else { hx = lerp(0.35, 2.1, E.out((t - 0.5) / 0.22)); lean = -0.32; }
+      trail = true;
+    } else if (k === 'dive' && t < 2.5) {
+      hx = lerp(0.8, 2.1, E.out(t / 0.15)); lean = -0.36; trail = true;
+    } else if (k === 'land' && t < 0.5) {
+      hx = t < 0.09 ? lerp(2.1, -0.95, E.inOut(t / 0.09)) : t < 0.28 ? -0.95 : lerp(-0.95, 0.8, E.out((t - 0.28) / 0.22));
+      lean = t < 0.28 ? 0.5 : lerp(0.5, 0, (t - 0.28) / 0.22); trail = t < 0.1;
+    } else if (k === 'catch' && t < 0.3) { hx = lerp(0.2, 0.8, E.out(t / 0.3)); lean = lerp(-0.15, 0, t / 0.3); }
+    else if (p.hThrown) { hx = 0.25; lean = 0.08; }
+    // smooth the arm + lean (spins stay exact so a 360 is a full 360)
+    av.thx = av.thx === undefined ? hx : lerp(av.thx, hx, 1 - Math.exp(-30 * dt));
+    av.tlean = av.tlean === undefined ? lean : lerp(av.tlean, lean, 1 - Math.exp(-14 * dt));
+    g.rotation.x = av.thx; av.root.rotation.y += spin; av.upper.rotation.x += av.tlean;
+    if (trail && g.visible && g.matrixWorld) {
+      const hp = g.localToWorld(headLocal(g).clone());
+      for (let i = 0; i < 2; i++) spawnParticle(hp.clone().add(V3(rand(-.2, .2), rand(-.2, .2), rand(-.2, .2))), V3(), k === 'leap' || k === 'dive' ? 0xffd060 : 0xffb020, 0.2, 0.22, 0, true);
+    }
+  }
+  // remote players' hammer moves arrive as 'f' messages
+  function onRemoteTitan(p, m) {
+    p.firedT = time; setAnim(p, m.an || 'swing');
+    if (m.an === 'leap' || m.an === 'dive') startFx(p, m.an);
+    if (m.e && m.e[0]) titanFx(V3().fromArray(m.e[0]), !!m.e[1], +m.r || TITAN.R, m.an || 'swing', !!m.e[2]);
+  }
+  // bots: leap at someone 6-13 m ahead (never off the edge)
   function botWantsDash(b) {
-    if (time < (b.tdashCD || 0) || b.dashT > 0) return false;
+    if (time < (b.tdashCD || 0) || b.slam || b.hThrown) return false;
     const fx = -Math.sin(b.yaw), fz = -Math.cos(b.yaw);
     for (const q of players.values()) {
       if (!q.alive || q === b || allies(b, q)) continue;
       const dx = q.pos.x - b.pos.x, dz = q.pos.z - b.pos.z, d = Math.hypot(dx, dz);
-      if (d > 4 && d < 9 && (dx * fx + dz * fz) / d > 0.92 && Math.abs(q.pos.y - b.pos.y) < 1.5) {
-        const land = V3(b.pos.x + fx * 9.5, b.pos.y + 1, b.pos.z + fz * 9.5);   /* never dash off the edge */
-        if (groundBelow(land, 4).y < b.pos.y - 2.5) return false;
+      if (d > 6 && d < 13 && (dx * fx + dz * fz) / d > 0.92 && Math.abs(q.pos.y - b.pos.y) < 1.5) {
+        if (groundBelow(V3(q.pos.x, q.pos.y + 1, q.pos.z), 4).y < q.pos.y - 2.5) return false;
         return Math.random() < 0.08;
       }
     }
     return false;
   }
-  // impact ring (every client: own swings and the 'f' messages of others)
-  function titanFx(C, sweet, R0) {
-    const R = R0 || TITAN.R;
-    for (let i = 0; i < 22; i++) { const a = i / 22 * Math.PI * 2; spawnParticle(V3(C.x + Math.cos(a) * R * 0.5, C.y, C.z + Math.sin(a) * R * 0.5), V3(Math.cos(a) * R * 3, rand(0.5, 2), Math.sin(a) * R * 3), sweet ? 0xff5030 : 0xffb020, 0.12, 0.35, 4, true); }
-    if (sweet) for (let i = 0; i < 10; i++) spawnParticle(C.clone(), V3(rand(-4, 4), rand(1, 6), rand(-4, 4)), 0xffffff, 0.09, 0.3, 8, true);
-    play3D('maul', C, 0.9);
-    if (me && C.distanceTo(me.pos) < 6) shakeAmt += 0.12;
-  }
-  // HUD: slam-dash readiness where the ammo counter goes
+  // HUD: leap + throw readiness where the ammo counter goes
   function titanHud(p) {
-    const left = (p.tdashCD || 0) - time;
-    return left > 0 ? '<small style="font-size:13px">DASH</small> ' + left.toFixed(1) + '<small>s</small>' : '<span style="color:#ffb020">DASH</span><small> RMB</small>';
+    const cd = (t, label, key) => { const l = (t || 0) - time; return l > 0 ? `<span style="opacity:.55">${label} ${l.toFixed(1)}</span>` : `<span style="color:#ffb020">${label}</span><small style="font-size:11px"> ${key}</small>`; };
+    return `<span style="font-size:19px">${cd(p.tdashCD, 'LEAP', 'RMB')} · ${p.hThrown ? '<span style="opacity:.55">THROWN</span>' : cd(p.thrCD, 'THROW', (typeof bindOf === 'function' ? bindOf('nade') : 'G').replace(/^Key/, ''))}</span>`;
   }
   // aim preview: a ring on the ground where your swing lands, with the kill zone marked (you, in HAMMERFALL)
   let aimG = null;
@@ -4625,7 +4801,7 @@ const Arms = (() => {
   }
   // bots: where the scythe makes sense, and which power weapons want close range
   const botMayFire = (b, w, dist) => !(w.dash && dist > w.dash - 1) && !(w.strike && dist < 7) && !(w.proj === 'turret' && dist > 30);
-  return { PROJ, FX, projMesh, fire, dmgMul, rhythm, rateMul, shove, airMul, preMove, dashVel, postMove, tick, steer, stillTick, onSpawnProj, onRemoteProj, beamFx, spawnEffect, update, hitMeshes, isTurretId, hitTurret, blastTurrets, onMsg, clear, warmObjects, drawRadar, botMayFire, botThreat, titanFx, titanHud, swingCenter, detonate, get turrets() { return turrets; }, get bubbles() { return bubbles; } };
+  return { PROJ, FX, projMesh, fire, dmgMul, rhythm, rateMul, shove, airMul, preMove, dashVel, postMove, tick, steer, stillTick, onSpawnProj, onRemoteProj, beamFx, spawnEffect, update, hitMeshes, isTurretId, hitTurret, blastTurrets, onMsg, clear, warmObjects, drawRadar, botMayFire, botThreat, titanFx, titanHud, swingCenter, titanPose, onRemoteTitan, onBoom, throwHammer, spawnThrow, detonate, get turrets() { return turrets; }, get bubbles() { return bubbles; } };
 })();
 
 </script>
@@ -8342,7 +8518,7 @@ const SaveXfer = (() => {
 //  Browsers may serve a cached older page for a while (GitHub Pages: 10 min), and mismatched versions can't
 //  play together, so the game polls version.json and offers a cache-busting reload when a newer build is out.
 // =====================================================================
-const BUILD_ID = '0d66d6abaf';
+const BUILD_ID = 'c103556808';
 const UpdateCheck = (() => {
   let shown = false;
   async function check() {
@@ -8602,7 +8778,7 @@ function handleMsg(m) {
     case 'f': {
       const p = players.get(m.id); if (!p || owns(p)) return; p.loudT = time;
       const mz = muzzlePos(p), w = WEAPONS[m.w] || WEAPONS[0];
-      if (w.titan) { p.firedT = time; if (m.e && m.e[0]) Arms.titanFx(V3().fromArray(m.e[0]), m.e[1] ? 1 : 0); play3D(w.sound, mz, 0.9); break; }   // HAMMERFALL impact ring
+      if (w.titan) { Arms.onRemoteTitan(p, m); break; }   // HAMMERFALL: animation + impact show
       p.firedT = time;
       if (m.e[0] && !w.flame) play3D('impactWorld', V3().fromArray(m.e[0]), 0.35);
       if (m.fl) flameFx(mz, aimDir(p, V3()), p.vel);
@@ -8626,6 +8802,7 @@ function handleMsg(m) {
     case 'stk': { const r = projs.find(q => q.rid === m.rid); if (r) stickProj(r, m.to); else if (m.to === me.id) { showAnnounce('STUCK!', 'RUN!'); SFX.announce('stuck'); } break; }
     case 'x': { const p = players.get(m.id); if (p && owns(p)) return; explode(m); break; }
     case 'turh': Arms.onMsg(m); break;
+    case 'thr': { const p = players.get(m.id); if (p && !owns(p)) Arms.spawnThrow(m, false); break; }
     case 'hit': { const v = players.get(m.v); if (v && owns(v)) applyDamage(v, m.dmg, m); break; }
     case 'fb': if (m.a === me.id) hitFeedback(m.dmg, false, m.c, V3().fromArray(m.p), m.v); break;
     case 'k': { const v = players.get(m.v); if (v && owns(v)) return; handleKill(m); break; }
@@ -8969,7 +9146,7 @@ const WEAPONS = [
   { key: 'locust', name: 'LOCUST', short: 'LOCUST', desc: 'Power weapon: a salvo of 6 homing micro-missiles shared among enemies near your aim', pickup: '3 SALVOS · AIM NEAR ENEMIES', power: true, proj: 'locust', salvo: 6, rate: 0.9, dmg: 22, mag: 3, reload: 99, zoom: 0.85, adsTime: 0.14, recoil: 0.04, shake: 0.16, sound: 'locust', tracerColor: 0xffa030, flash: 0xffb050, gunLen: 1.1 },
   { key: 'sentinel', name: 'SENTINEL', short: 'SENTRY', desc: 'Power weapon: throw a turret that guns down enemies it can see', pickup: '1 TURRET · 18 S · IT CAN BE SHOT DOWN', power: true, proj: 'turret', rate: 0.6, mag: 1, reload: 99, zoom: 1, adsTime: 0.1, recoil: 0, shake: 0.05, sound: 'throw', tracerColor: 0x50ff9a, flash: 0x50ff9a, gunLen: 0.8 },
   // ---- HAMMERFALL: the TITAN HAMMER (mode weapon). Area swing: dead-centre 100, off-centre 85 -> 25 at the edge; RMB slam-dash; air slam ----
-  { key: 'titan', name: 'TITAN HAMMER', short: 'TITAN', desc: 'Hammerfall: a giant hammer. Centre hits kill, edges bruise, everything flies', special: 'Swing hits an AREA in front of you: dead-centre kills, the edge only bruises. RMB slam-dashes forward. Look down mid-air to slam.', melee: true, titan: true, rate: 0.8, dmg: 100, mag: 1, reload: 0.1, range: 5, spread: 0, moveSpread: 0, adsMul: 1, zoom: 1, adsTime: 0.1, pellets: 1, recoil: 0, shake: 0.3, sound: 'maul', tracerColor: 0xffb020, flash: 0xffb020, moveMul: 1.1, gunLen: 1.3 },
+  { key: 'titan', name: 'TITAN HAMMER', short: 'TITAN', desc: 'Hammerfall: a giant hammer. Centre hits kill, edges bruise, everything flies', special: 'Swing hits an AREA in front of you: dead-centre kills, the edge only bruises. RMB slam-dashes forward. Look down mid-air to slam.', melee: true, titan: true, rate: 0.8, dmg: 100, mag: 1, reload: 0.1, range: 5, spread: 0, moveSpread: 0, adsMul: 1, zoom: 1, adsTime: 0.1, pellets: 1, recoil: 0, shake: 0.3, sound: 'hWind', tracerColor: 0xffb020, flash: 0xffb020, moveMul: 1.1, gunLen: 1.3 },
 ];
 const W_SCATTER = 2, W_SNIPER = 3, W_ROCKET = 4, W_PISTOL = 5, W_VULTURE = 6, W_TRIDENT = 7, W_HAVOC = 8, W_STINGER = 9, W_RAIL = 10, W_HAIL = 11, W_ARC = 12, W_SING = 13, W_XBOW = 14, W_PINBALL = 15, W_SCORCH = 16, W_FANG = 17, W_KESTREL = 18, W_BLADE = 19,
   W_SURGE = 20, W_LUMEN = 21, W_ANVIL = 22, W_MAULER = 23, W_PIPER = 24, W_GEMINI = 25,
@@ -9980,7 +10157,8 @@ function castShot(o, d, ownerId, range, pen = 0) {
   return { point: from.clone(), mult, holes };
 }
 function hasLOS(a, b) {
-  _v3.copy(b).sub(a); const d = _v3.length(); _v3.divideScalar(d);
+  _v3.copy(b).sub(a); const d = _v3.length(); if (d < 1e-3) return true;   /* same point: nothing can be in between (a NaN ray used to count as blocked) */
+  _v3.divideScalar(d);
   _ray.set(a, _v3); _ray.far = d;
   return _ray.intersectObjects(World.rayMeshes, false).length === 0 && !Extras.smokeBlocks(a, b);
 }
@@ -10195,6 +10373,7 @@ function updateBurns(dt) {
   }
 }
 function throwNade(p) {
+  if (WEAPONS[p.weapon] && WEAPONS[p.weapon].titan) { Arms.throwHammer(p); return; }   // HAMMERFALL: G throws the hammer
   if (p.nades < 1 || p.nadeCD > 0 || !p.alive || match.cd > 0 || R.noNades || !Party.canFire(p)) return;
   p.nades--; p.nadeCD = 0.6; p.spawnProt = 0; p.firedT = time;
   const d = aimDir(p, V3()), o = eyePos(p, V3()).addScaledVector(d, 0.6);
@@ -10205,7 +10384,7 @@ function throwNade(p) {
   if (p === me) { SFX.play('throw'); vm.throwK = 1; } else play3D('throw', o, 0.7);
 }
 function weaponTick(p, dt, wantFire) {
-  if (wantFire && !Party.canFire(p)) wantFire = false;
+  if (wantFire && (!Party.canFire(p) || p.hThrown)) wantFire = false;   // (HAMMERFALL: no swinging while the hammer is out)
   p.fireCD -= dt; p.switchT -= dt; p.nadeCD -= dt;
   if (p.nades < NADE_MAX && match.mode !== 'breach') { p.nadeRe += dt; if (p.nadeRe >= NADE_RECHARGE) { p.nades++; p.nadeRe = 0; } }
   if (!wantFire) p.semiLock = false;
@@ -10496,6 +10675,7 @@ function explode(m) {
   if (P.effect) { (Arms.FX.includes(P.effect) ? Arms : Extras).spawnEffect(P.effect, c, m); return; }   // smoke / vortex / decoy / stasis / turret
   if (P.bolt) { boltImpact(c, m); return; }
   if (P.beam) Arms.beamFx(c);   // ORBITAL
+  if (m.k === 'tslam' || m.k === 'tdash') Arms.onBoom(m);   // HAMMERFALL landing show
   explosionFx(c, P.splash, P.conc);
   applyBlast(m, c, P);
   Arms.blastTurrets(m, c, P);
@@ -12240,10 +12420,7 @@ function poseAvatar(p, dt) {
   av.aim.rotation.x = p.pitch - av.lean;
   av.neck.rotation.x = p.pitch * 0.6 - av.lean * 0.8;
   av.guns.forEach((g, i) => g.visible = i === p.weapon);
-  if (p.weapon === W_TITAN) {   // HAMMERFALL: hammer held raised over the shoulder; a swing winds up, then smashes down (readable from afar)
-    const k = clamp((time - (p.firedT || -9)) / 0.55, 0, 1);
-    av.guns[W_TITAN].rotation.x = k >= 1 ? 0.8 : k < 0.25 ? lerp(0.8, 1.55, k / 0.25) : k < 0.55 ? lerp(1.55, -0.85, (k - 0.25) / 0.3) : lerp(-0.85, 0.8, (k - 0.55) / 0.45);
-  }
+  if (p.weapon === W_TITAN) Arms.titanPose(p, av, dt);   // HAMMERFALL: eased per-move animation (spins, Thor overhead, smash)
   av.muzzle.position.copy(avMuzzle(p.weapon));
   const glint = p !== me && p.alive && isSniper(p.weapon) && p.adsK > 0.5;
   av.glint.visible = glint;
