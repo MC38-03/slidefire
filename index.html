@@ -8554,7 +8554,7 @@ const SaveXfer = (() => {
 //  Browsers may serve a cached older page for a while (GitHub Pages: 10 min), and mismatched versions can't
 //  play together, so the game polls version.json and offers a cache-busting reload when a newer build is out.
 // =====================================================================
-const BUILD_ID = 'e06cc645cb';
+const BUILD_ID = 'a2a615ff26';
 const UpdateCheck = (() => {
   let shown = false;
   async function check() {
@@ -9365,9 +9365,9 @@ function bladeGeo(cmds, depth = 0.008, holes) {
 // first-person gloved hand + sleeved forearm gripping a knife handle (grip axis = z, centred on the origin)
 function buildKnifeHand() {
   const env = knifeEnv();
-  const glove = new THREE.MeshStandardMaterial({ color: 0x0d0e11, roughness: 0.6, metalness: 0.1, envMap: env, envMapIntensity: 0.5 });
-  const pad = new THREE.MeshStandardMaterial({ color: 0x3a2e24, roughness: 0.85, metalness: 0 });   /* leather knuckle + fingertip pads */
-  const sleeve = new THREE.MeshStandardMaterial({ color: 0x141a26, roughness: 0.95, metalness: 0 });
+  const glove = new THREE.MeshLambertMaterial({ color: 0x0a0b0d });   /* very dark on purpose: the viewmodel lights + ACES lift dark colours a lot */   /* matte leather: no reflections (they read lilac under the purple lights) */
+  const pad = new THREE.MeshLambertMaterial({ color: 0x24170f });   /* leather knuckle + fingertip pads */
+  const sleeve = new THREE.MeshLambertMaterial({ color: 0x090c12 });   /* matte (Lambert): the standard material picked up a lilac sheen from the viewmodel lighting */
   const g = new THREE.Group();
   const B = (sx, sy, sz, m, x, y, z, rx = 0, ry = 0, rz = 0) => { const o = new THREE.Mesh(new THREE.BoxGeometry(sx, sy, sz), m); o.position.set(x, y, z); o.rotation.set(rx, ry, rz); g.add(o); return o; };
   B(0.024, 0.088, 0.104, glove, 0.036, 0.004, 0.002);                                   // back of the hand (outside of the grip)
