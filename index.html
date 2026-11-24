@@ -8554,7 +8554,7 @@ const SaveXfer = (() => {
 //  Browsers may serve a cached older page for a while (GitHub Pages: 10 min), and mismatched versions can't
 //  play together, so the game polls version.json and offers a cache-busting reload when a newer build is out.
 // =====================================================================
-const BUILD_ID = 'a2a615ff26';
+const BUILD_ID = 'f890aecee5';
 const UpdateCheck = (() => {
   let shown = false;
   async function check() {
@@ -9353,35 +9353,49 @@ const KNIFE_OPENS = { butterfly: 1, stiletto: 1, plasma: 1 }, KNIFE_RING = { kar
 const KNIFE_KEYS = Object.keys(KNIVES);
 const knifeOf = k => (KNIVES[k] ? k : 'karambit');
 // extruded blade profile: shape x = along the blade (forward = -z in the gun model), shape y = up
-function bladeGeo(cmds, depth = 0.008, holes) {
-  const s = new THREE.Shape();
-  for (const c of cmds) { if (c[0] === 'm') s.moveTo(c[1], c[2]); else if (c[0] === 'l') s.lineTo(c[1], c[2]); else s.quadraticCurveTo(c[1], c[2], c[3], c[4]); }
-  if (holes) for (const [x, y, r] of holes) { const h = new THREE.Path(); h.absarc(x, y, r, 0, Math.PI * 2, true); s.holes.push(h); }
-  const g = new THREE.ExtrudeGeometry(s, { depth, bevelEnabled: true, bevelThickness: 0.0015, bevelSize: 0.0012, bevelSegments: 1, curveSegments: 12 });
-  g.translate(0, 0, -depth / 2); g.rotateY(Math.PI / 2);
+function bladeGeo(cmds, depth = 0.008, holes, grind = 'single') {
+  const sh = new THREE.Shape();
+  for (const c of cmds) { if (c[0] === 'm') sh.moveTo(c[1], c[2]); else if (c[0] === 'l') sh.lineTo(c[1], c[2]); else sh.quadraticCurveTo(c[1], c[2], c[3], c[4]); }
+  if (holes) for (const [x, y, r] of holes) { const h = new THREE.Path(); h.absarc(x, y, r, 0, Math.PI * 2, true); sh.holes.push(h); }
+  const g = new THREE.ExtrudeGeometry(sh, { depth, bevelEnabled: true, bevelThickness: 0.0012, bevelSize: 0.001, bevelSegments: 2, curveSegments: 28 });
+  g.translate(0, 0, -depth / 2);
+  if (grind) {   // the GRIND: full thickness at the spine, tapering to a thin edge (both sides for double-edged blades)
+    const p = g.attributes.position, n = p.count, B = new Map(), key = x => Math.round(x / 0.003);
+    for (let i = 0; i < n; i++) { const k = key(p.getX(i)), y = p.getY(i), b = B.get(k) || { lo: 1e9, hi: -1e9 }; b.lo = Math.min(b.lo, y); b.hi = Math.max(b.hi, y); B.set(k, b); }
+    for (let i = 0; i < n; i++) {
+      const b = B.get(key(p.getX(i))), h = b.hi - b.lo; if (h < 1e-4) continue;
+      let f = (p.getY(i) - b.lo) / h; if (grind === 'double') f = 1 - Math.abs(2 * f - 1);
+      p.setZ(i, p.getZ(i) * (0.1 + 0.9 * Math.min(1, f / 0.8)));
+    }
+    p.needsUpdate = true; g.computeVertexNormals();
+  }
+  g.rotateY(Math.PI / 2);
   const uv = g.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * 7, uv.getY(i) * 7);
   return g;
 }
 // first-person gloved hand + sleeved forearm gripping a knife handle (grip axis = z, centred on the origin)
 function buildKnifeHand() {
-  const env = knifeEnv();
-  const glove = new THREE.MeshLambertMaterial({ color: 0x0a0b0d });   /* very dark on purpose: the viewmodel lights + ACES lift dark colours a lot */   /* matte leather: no reflections (they read lilac under the purple lights) */
-  const pad = new THREE.MeshLambertMaterial({ color: 0x24170f });   /* leather knuckle + fingertip pads */
-  const sleeve = new THREE.MeshLambertMaterial({ color: 0x090c12 });   /* matte (Lambert): the standard material picked up a lilac sheen from the viewmodel lighting */
-  const g = new THREE.Group();
-  const B = (sx, sy, sz, m, x, y, z, rx = 0, ry = 0, rz = 0) => { const o = new THREE.Mesh(new THREE.BoxGeometry(sx, sy, sz), m); o.position.set(x, y, z); o.rotation.set(rx, ry, rz); g.add(o); return o; };
-  B(0.024, 0.088, 0.104, glove, 0.036, 0.004, 0.002);                                   // back of the hand (outside of the grip)
-  B(0.03, 0.024, 0.098, pad, 0.026, -0.04, 0.002, 0, 0, 0.5);                           // knuckle pads
-  for (let i = 0; i < 4; i++) {                                                         // fingers curled under and around the grip
-    const z = -0.036 + i * 0.024, w = i === 3 ? 0.019 : 0.022;
-    B(0.052, 0.022, w, glove, 0.004, -0.044, z, 0, 0, -0.12);
-    B(0.021, 0.05, w, glove, -0.03, -0.018, z, 0, 0, 0.15);
-    B(0.018, 0.018, w * 0.92, pad, -0.033, 0.012, z);                                     // fingertips
+  // smooth primitives only (ellipsoids, capsules, tapered cylinders): grip axis = z, blade toward -z, +x = outside of the fist
+  const glove = new THREE.MeshStandardMaterial({ color: 0x08090b, roughness: 0.48, metalness: 0 });          // dark leather with a soft sheen
+  const pad = new THREE.MeshStandardMaterial({ color: 0x1c120c, roughness: 0.62, metalness: 0 });             // brown palm + fingertip pads
+  const sleeve = new THREE.MeshStandardMaterial({ color: 0x06080d, roughness: 0.9, metalness: 0 });
+  const cuff = new THREE.MeshStandardMaterial({ color: 0x14171e, roughness: 0.45, metalness: 0.4 });
+  const g = new THREE.Group(), SPH = new THREE.SphereGeometry(1, 24, 16);
+  const add = (geo, m, x, y, z, rx = 0, ry = 0, rz = 0, sc) => { const o = new THREE.Mesh(geo, m); o.position.set(x, y, z); o.rotation.set(rx, ry, rz); if (sc) o.scale.set(sc[0], sc[1], sc[2]); g.add(o); return o; };
+  const cap = (r, len) => new THREE.CapsuleGeometry(r, len, 6, 12);
+  add(SPH, glove, 0.029, 0.008, 0.002, 0, 0, 0, [0.019, 0.045, 0.058]);                      // back of the hand
+  for (let i = 0; i < 4; i++) add(SPH, glove, 0.03, -0.03, -0.034 + i * 0.0225, 0, 0, 0, [0.012, 0.011, 0.0105]);   // knuckles
+  add(SPH, pad, 0.012, -0.03, 0.002, 0, 0, -0.5, [0.026, 0.02, 0.056]);                     // palm, under the grip
+  for (let i = 0; i < 4; i++) {                                                             // fingers: two curled segments + a pad
+    const z = -0.034 + i * 0.0225, r = i === 3 ? 0.0084 : 0.0097;
+    add(cap(r, 0.026), glove, 0.006, -0.038, z, 0, 0, Math.PI / 2 + 0.3);                     // under the grip
+    add(cap(r * 0.94, 0.02), glove, -0.024, -0.018, z, 0, 0, -0.35);                          // up the far side
+    add(SPH, pad, -0.027, 0.001, z, 0, 0, 0, [r * 0.95, r * 1.05, r * 0.95]);                  // fingertip
   }
-  B(0.02, 0.022, 0.066, glove, -0.02, 0.04, -0.03, 0.1, -0.35, 0.3);                     // thumb over the top
-  B(0.064, 0.074, 0.07, glove, 0.016, -0.004, 0.086);                                    // wrist
-  B(0.088, 0.094, 0.36, sleeve, 0.024, -0.016, 0.29);                                    // forearm, out of view
-  B(0.094, 0.1, 0.022, vmAccent, 0.024, -0.016, 0.122);                                  // cuff stripe
+  add(cap(0.0105, 0.036), glove, -0.008, 0.033, -0.024, -Math.PI / 2 + 0.25, 0, 0.35);       // thumb over the top
+  add(new THREE.CylinderGeometry(0.035, 0.04, 0.07, 24).rotateX(Math.PI / 2), glove, 0.016, -0.006, 0.07);   // wrist
+  add(new THREE.TorusGeometry(0.045, 0.0075, 12, 32), cuff, 0.018, -0.01, 0.108);            // cuff
+  add(new THREE.CylinderGeometry(0.049, 0.06, 0.46, 28).rotateX(Math.PI / 2), sleeve, 0.02, -0.016, 0.34);   // sleeve: long enough that its end never shows
   g.traverse(o => { if (o.isMesh) o.castShadow = false; });
   return g;
 }
@@ -9409,7 +9423,7 @@ function handleGeo(L, top = 0.014, bot = -0.016, fingers = 3, width = 0.02) {
   const n = Math.max(1, fingers), seg = (L + 0.004) / n;
   for (let i = 0; i < n; i++) { const xa = -L + seg * i, xb = xa + seg; s.quadraticCurveTo((xa + xb) / 2, bot - (fingers ? 0.009 : 0.003), xb, bot); }   // finger bulges
   s.lineTo(0.004, top);
-  const gg = new THREE.ExtrudeGeometry(s, { depth: width, bevelEnabled: true, bevelThickness: 0.004, bevelSize: 0.0035, bevelSegments: 3, curveSegments: 10 });
+  const gg = new THREE.ExtrudeGeometry(s, { depth: width, bevelEnabled: true, bevelThickness: 0.0045, bevelSize: 0.004, bevelSegments: 6, curveSegments: 20 });
   gg.translate(0, 0, -width / 2); gg.rotateY(Math.PI / 2);
   return gg;
 }
@@ -9435,7 +9449,6 @@ function buildKnives(pivot, M) {
   const ringKnife = (o) => {
     const g = new THREE.Group(), m = new THREE.Group(); g.add(m); m.position.z = -o.ringZ; g.position.z = o.ringZ;
     mk(bladeGeo(o.blade, 0.011), M.metal, m, 0, 0, 0);
-    mk(bladeGeo(o.edge, 0.0122), edge, m, 0, 0, 0);                                           // honed inner edge
     if (o.jimp) for (let i = 0; i < 6; i++) box(m, .013, .005, .004, black, 0, o.jimpY + .001 * i, -.012 - i * .009);
     box(m, .022, .036, .014, steel, 0, 0, .006);                                              // bolster
     const grip = new THREE.Group(); grip.rotation.x = -0.18; m.add(grip);                     // slightly curved grip
@@ -9458,7 +9471,6 @@ function buildKnives(pivot, M) {
   {
     const g = new THREE.Group();
     mk(bladeGeo([['m', 0, 0.011], ['l', 0.135, 0.011], ['l', 0.172, 0], ['q', 0.12, -0.018, 0, -0.013], ['l', 0, 0.011]]), M.metal, g, 0, 0, 0);
-    mk(bladeGeo([['m', 0.01, -0.006], ['q', 0.12, -0.014, 0.168, 0.0], ['q', 0.12, -0.02, 0.01, -0.012], ['l', 0.01, -0.006]], 0.0095), edge, g, 0, 0, 0);
     const hA = new THREE.Group(), hB = new THREE.Group(); hA.position.set(0.0075, 0, 0); hB.position.set(-0.0075, 0, 0); g.add(hA, hB);
     for (const [h, s] of [[hA, 1], [hB, -1]]) {
       box(h, .006, .007, .124, steel, 0, .0085, .062); box(h, .006, .007, .124, steel, 0, -.0085, .062);   // open-frame rails
@@ -9474,7 +9486,6 @@ function buildKnives(pivot, M) {
   {
     const g = new THREE.Group();
     mk(bladeGeo([['m', 0, 0.015], ['l', 0.2, 0.015], ['l', 0.27, 0], ['q', 0.2, -0.02, 0, -0.016], ['l', 0, 0.015]], 0.009), M.metal, g, 0, 0, 0);
-    box(g, .0102, .004, .16, edge, 0, .005, -.095);
     box(g, .022, .07, .012, steel, 0, -.002, .006);
     mk(handleGeo(.105, .016, -.018, 4, .023), H.rubber, g, 0, -.002, .014);
     box(g, .031, .04, .02, steel, 0, -.002, .126);
@@ -9484,7 +9495,6 @@ function buildKnives(pivot, M) {
   {
     const g = new THREE.Group();
     mk(bladeGeo([['m', 0, 0.016], ['l', 0.15, 0.016], ['q', 0.2, 0.012, 0.205, -0.002], ['q', 0.13, -0.022, 0, -0.016], ['l', 0, 0.016]], 0.008, [[0.028, 0.004, 0.0065]]), M.metal, g, 0, 0, 0);
-    mk(bladeGeo([['m', 0.04, -0.011], ['q', 0.13, -0.02, 0.2, -0.003], ['q', 0.13, -0.025, 0.04, -0.015], ['l', 0.04, -0.011]], 0.0085), edge, g, 0, 0, 0);
     mk(handleGeo(.118, .015, -.016, 0, .022), H.walnut, g, 0, -.002, .008);
     box(g, .0235, .003, .12, steel, 0, .0145, .066);                                           // liner along the spine
     for (const z of [.03, .1]) pin(g, z);
@@ -9496,7 +9506,6 @@ function buildKnives(pivot, M) {
     const g = new THREE.Group();
     const spine = [['m', 0, 0.02]]; for (let i = 0; i < 7; i++) { spine.push(['l', 0.03 + i * 0.016, 0.026]); spine.push(['l', 0.038 + i * 0.016, 0.02]); }
     mk(bladeGeo([...spine, ['l', 0.2, 0.02], ['l', 0.25, 0.003], ['q', 0.17, -0.03, 0, -0.02], ['l', 0, 0.02]], 0.01), M.metal, g, 0, 0, 0);
-    mk(bladeGeo([['m', 0.02, -0.014], ['q', 0.17, -0.026, 0.245, 0.0], ['q', 0.17, -0.032, 0.02, -0.019], ['l', 0.02, -0.014]], 0.0105), edge, g, 0, 0, 0);
     box(g, .02, .02, .012, steel, 0, -.026, .006); box(g, .022, .056, .012, steel, 0, -.004, .006);   // finger guard
     mk(handleGeo(.108, .017, -.018, 4, .024), H.walnutD, g, 0, -.003, .014);
     for (const z of [.035, .09]) pin(g, z, -.003, .033);
@@ -9506,8 +9515,7 @@ function buildKnives(pivot, M) {
   // STILETTO: long needle blade on a pivot (folds into the handle), slim black-pearl handle with steel caps
   {
     const g = new THREE.Group(), fold = new THREE.Group(); g.add(fold);
-    mk(bladeGeo([['m', 0, 0.009], ['l', 0.16, 0.007], ['l', 0.21, 0], ['l', 0.16, -0.007], ['l', 0, -0.009], ['l', 0, 0.009]], 0.006), M.metal, fold, 0, 0, 0);
-    box(fold, .0072, .002, .15, edge, 0, 0, -.085);
+    mk(bladeGeo([['m', 0, 0.009], ['l', 0.16, 0.007], ['l', 0.21, 0], ['l', 0.16, -0.007], ['l', 0, -0.009], ['l', 0, 0.009]], 0.0075, null, 'double'), M.metal, fold, 0, 0, 0);
     mk(handleGeo(.128, .012, -.012, 0, .017), H.pearl, g, 0, 0, .008);
     box(g, .021, .028, .014, steel, 0, 0, .004); box(g, .021, .028, .016, steel, 0, 0, .134);
     box(g, .006, .008, .02, steel, .012, .006, .04);                                           // release button
@@ -9518,7 +9526,6 @@ function buildKnives(pivot, M) {
   {
     const g = new THREE.Group();
     mk(bladeGeo([['m', 0, 0.018], ['l', 0.065, 0.018], ['l', 0.075, 0.006], ['q', 0.092, -0.002, 0.104, 0.016], ['l', 0.16, 0.013], ['l', 0.2, 0], ['q', 0.12, -0.024, 0, -0.018], ['l', 0, 0.018]], 0.0095), M.metal, g, 0, 0, 0);
-    mk(bladeGeo([['m', 0.03, -0.012], ['q', 0.13, -0.022, 0.195, -0.002], ['q', 0.12, -0.028, 0.03, -0.016], ['l', 0.03, -0.012]], 0.01), edge, g, 0, 0, 0);
     box(g, .022, .04, .012, steel, 0, -.002, .006);
     mk(handleGeo(.112, .015, -.017, 3, .023), H.olive, g, 0, -.003, .013);
     out.gut = g;
@@ -9527,7 +9534,6 @@ function buildKnives(pivot, M) {
   {
     const g = new THREE.Group();
     mk(bladeGeo([['m', 0, 0.016], ['l', 0.13, 0.016], ['q', 0.18, 0.012, 0.19, -0.002], ['q', 0.12, -0.022, 0, -0.016], ['l', 0, 0.016]], 0.009), M.metal, g, 0, 0, 0);
-    mk(bladeGeo([['m', 0.03, -0.011], ['q', 0.12, -0.02, 0.185, -0.003], ['q', 0.12, -0.025, 0.03, -0.015], ['l', 0.03, -0.011]], 0.0095), edge, g, 0, 0, 0);
     for (const y of [.012, -.016]) box(g, .012, .007, .124, steel, 0, y, .068);
     for (let i = 0; i < 8; i++) mk(new THREE.CylinderGeometry(.0105, .0105, .0078, 10).rotateX(Math.PI / 2), H.cord, g, 0, -.002, .02 + i * .0125).scale.set(1, 1.55, 1);
     mk(new THREE.TorusGeometry(.017, .0055, 10, 22).rotateY(Math.PI / 2), steel, g, 0, -.002, .146);
@@ -11670,7 +11676,7 @@ const vmAccent = new THREE.MeshStandardMaterial({ color: 0x00e5ff, emissive: 0x0
   classic.traverse(o => { if (o.isMesh && o.material === metal) o.material = vm.knifeBlade; });
   vm.knives = Object.assign({ blade: classic }, buildKnives(vm.knifePivot, { metal: vm.knifeBlade, body, dark }));
   for (const k in vm.knives) vm.knives[k].userData.base = vm.knives[k].position.clone();
-  vm.knifeHand = buildKnifeHand(); kn.add(vm.knifeHand);
+  vm.knifeHand = buildKnifeHand(); vm.knifeHand.scale.x = -1; kn.add(vm.knifeHand);   // mirrored: the back of the hand + knuckles face you, the fingers wrap the far side
   vm.mats = { body, dark, metal, glass };
   // ================= PATCH 4 models =================
   // SURGE: bullpup receiver with swept glowing speed fins, mag behind the grip
@@ -11875,7 +11881,7 @@ function updateViewmodel(dt) {
   if (me.recoilBack) { const b = me.recoilBack * (1 - Math.exp(-9 * dt)); me.pitch -= b; me.recoilBack -= b; if (Math.abs(me.recoilBack) < 1e-4) me.recoilBack = 0; }
   vm.switchK = Math.max(0, vm.switchK - dt * 4);
   vm.throwK = Math.max(0, vm.throwK - dt * 3);
-  vm.slashK = Math.max(0, vm.slashK - dt * 4.5);
+  vm.slashK = Math.max(0, vm.slashK - dt * (me.weapon === W_BLADE ? 2.6 : 4.5));   // knife slashes play out longer (wind-up, sweep, follow-through)
   vm.jolt = Math.max(0, (vm.jolt || 0) - dt * 6);
   if (me.weapon === W_BLADE) {   // knife model + inspect / draw animations
     const kt = knifeOf(Settings.knife);
@@ -11896,7 +11902,13 @@ function updateViewmodel(dt) {
     // flick sounds on the trick beats
     if (t !== null) { const beat = Math.floor(t * (kt === 'butterfly' ? 7 : kt === 'karambit' ? 5 : 3)); if (beat !== vm.inspectClick) { vm.inspectClick = beat; if (beat > 0) SFX.play('knifeflip', 0.55); } }
   }
-  const sl = Math.sin(vm.slashK * Math.PI);   // knife swing: sweep across and forward
+  let sl = Math.sin(vm.slashK * Math.PI), slRoll = 0;   // knife swing: sweep across and forward
+  if (me.weapon === W_BLADE && vm.slashK > 0) {
+    const k = 1 - vm.slashK;
+    sl = k < 0.16 ? -0.3 * _ease(k / 0.16) : k < 0.46 ? lerp(-0.3, 1, _ease((k - 0.16) / 0.3)) : lerp(1, 0, _ease((k - 0.46) / 0.54));
+    slRoll = sl * 0.5 * (vm.slashDir || 1);   /* the wrist rolls through the cut: a diagonal slash, not a sideways arm swing */
+  }
+  const breath = me.weapon === W_BLADE ? Math.sin(time * 1.7) : 0;   // idle breathing on the knife
   const a = me.adsK;
   const bob = (me.onGround && !me.sliding ? Math.min(1, hs / 8) : 0) * (1 - a * 0.85);
   const bx = Math.sin(bobPhase) * 0.012 * bob, by = Math.abs(Math.cos(bobPhase)) * 0.014 * bob;
@@ -11904,11 +11916,11 @@ function updateViewmodel(dt) {
   const reloadK = me.reloadT > 0 ? Math.sin((1 - me.reloadT / (me.reloadMax || 1)) * Math.PI) : 0;
   const ap = ADS_POS[me.weapon];
   vm.root.position.set(
-    lerp(0.25, ap[0], a) + bx + vm.swayX * (1 - a * 0.8) - sl * 0.22 * (vm.slashDir || 1),
-    lerp(-0.25, ap[1], a) - by + vm.swayY * (1 - a * 0.8) - vm.switchK * 0.3 - reloadK * 0.13 + vm.jolt * 0.02 - vm.throwK * 0.15 + (me.sliding ? 0.03 : 0),
+    lerp(0.25, ap[0], a) + bx + vm.swayX * (1 - a * 0.8) - sl * (me.weapon === W_BLADE ? 0.07 : 0.22) * (vm.slashDir || 1),
+    lerp(-0.25, ap[1], a) - by + breath * 0.004 + vm.swayY * (1 - a * 0.8) - vm.switchK * 0.3 - reloadK * 0.13 + vm.jolt * 0.02 - vm.throwK * 0.15 + (me.sliding ? 0.03 : 0),
     lerp(-0.5, ap[2], a) + vm.kick * (0.07 - a * 0.04) - sl * 0.18);
-  vm.root.rotation.set(vm.kick * (0.12 - a * 0.09) - reloadK * 0.75 - vm.jolt * 0.08 + (me.onGround ? 0 : 0.04) * (1 - a) - vm.throwK * 0.5 - sl * 0.35, vm.swayX * 2 * (1 - a) + sl * 0.9 * (vm.slashDir || 1),
-    ((me.sliding ? 0.3 : 0) + (me.wallRunning ? -me.wallSide * 0.25 : 0)) * (1 - a) + reloadK * 0.55 + vm.jolt * 0.05);
+  vm.root.rotation.set(vm.kick * (0.12 - a * 0.09) - reloadK * 0.75 - vm.jolt * 0.08 + (me.onGround ? 0 : 0.04) * (1 - a) - vm.throwK * 0.5 - sl * (me.weapon === W_BLADE ? 0.3 : 0.35), vm.swayX * 2 * (1 - a) + sl * (me.weapon === W_BLADE ? 0.26 : 0.9) * (vm.slashDir || 1),
+    ((me.sliding ? 0.3 : 0) + (me.wallRunning ? -me.wallSide * 0.25 : 0)) * (1 - a) + reloadK * 0.55 + vm.jolt * 0.05 + slRoll + breath * 0.012);
   const hand = Settings.vmHand || 'right';   // left = mirrored model (three.js flips the face culling for us), centre = CS-style centred gun
   if (hand === 'left') { vm.root.position.x *= -1; vm.root.rotation.y *= -1; vm.root.rotation.z *= -1; vm.root.scale.x = -1; }
   else { vm.root.scale.x = 1; if (hand === 'center') { vm.root.position.x -= 0.25 * (1 - me.adsK); vm.root.position.y -= 0.03 * (1 - me.adsK); } }
