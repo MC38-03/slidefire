@@ -560,6 +560,10 @@ body.lowfx #menu{backdrop-filter:none;background:rgba(5,3,12,.9)}
 #menu details.sect>summary small{color:#c4bae3}
 .mtabs button{color:#cfc4f2}
 .mlogo p{color:#b3a8d6}
+#tip{position:fixed;z-index:9999;max-width:300px;padding:9px 12px;border-radius:9px;background:rgba(10,6,24,.97);border:1px solid rgba(0,229,255,.45);box-shadow:0 6px 24px rgba(0,0,0,.6);font-family:Rajdhani;font-size:15px;line-height:1.3;color:#eee;pointer-events:none;opacity:0;transition:opacity .08s}#tip.on{opacity:1}#tip b{font-family:Orbitron;font-size:11px;letter-spacing:.08em;color:var(--cyan)}
+.ti{display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;margin-left:6px;border-radius:50%;border:1px solid rgba(0,229,255,.6);color:var(--cyan);font-family:Georgia,serif;font-style:italic;font-weight:700;font-size:10px;cursor:help;vertical-align:middle}
+.mutexp{font-size:13.5px;color:#e2d9fb;margin-top:4px;line-height:1.3}.mutexp b{font-family:Orbitron;font-size:10px;letter-spacing:.08em;color:#7dff3a;margin-right:4px}
+#mutNote{margin-top:6px}
 </style>
 </head>
 <body>
@@ -889,6 +893,7 @@ body.lowfx #menu{backdrop-filter:none;background:rgba(5,3,12,.9)}
   </div>
 </div>
 
+<div id="tip"></div>
 <script>/* lib/three.min.js */
 /**
  * @license
@@ -7068,16 +7073,16 @@ function fillBots() {
 const Mut = (() => {
   // key, name, one-line description. Order = lobby order.
   const LIST = [
-    ['bighead', 'BIG HEADS', 'Huge heads: easier headshots, sillier fights'],
-    ['oneshot', 'ONE SHOT', 'Every hit kills, from any gun'],
-    ['headsonly', 'HEADSHOTS ONLY', 'Only headshots (and knives) do damage'],
-    ['vampire', 'VAMPIRE', 'No regen: kills heal you +60 HP (up to 150%)'],
-    ['knives', 'KNIVES ONLY', 'Blades only, no grenades or power weapons'],
-    ['turbo', 'TURBO', 'Everyone moves and slides 40% faster'],
-    ['ice', 'ICE RINK', 'Every floor is frozen: no grip, all momentum'],
-    ['arsenal', 'ARSENAL', 'Spawn with a random power weapon every life'],
-    ['radar', 'OPEN RADAR', 'Every enemy is always on your radar'],
-    ['chaos', 'CHAOS', 'A random extra mutator switches on every 40 s'],
+    ['bighead', 'BIG HEADS', 'Everyone\'s head is 2.3x bigger: headshots are much easier to land'],
+    ['oneshot', 'ONE SHOT', 'Any hit from any weapon kills instantly'],
+    ['headsonly', 'HEADSHOTS ONLY', 'Body shots do nothing: only headshots (and knife hits) deal damage'],
+    ['vampire', 'VAMPIRE', 'Health never regenerates on its own; every kill heals you +60 HP (you can go up to 150%)'],
+    ['knives', 'KNIVES ONLY', 'Everyone only has a knife: no guns, grenades or power weapons'],
+    ['turbo', 'TURBO', 'Everyone runs, slides and jumps around 40% faster'],
+    ['ice', 'ICE RINK', 'Every floor is slippery ice: you keep sliding, stopping and turning take time'],
+    ['arsenal', 'ARSENAL', 'Every time you spawn you also get a random power weapon (railgun, maul, sentinel...)'],
+    ['radar', 'OPEN RADAR', 'All enemies show on the radar all the time, not only when they shoot'],
+    ['chaos', 'CHAOS', 'Every 40 s the host switches on ONE random extra mutator (big heads, one shot, ice rink, turbo...) for everyone, until the next one replaces it. An announcement says which'],
   ];
   const KEYS = LIST.map(x => x[0]);
   const CHAOS_POOL = ['bighead', 'oneshot', 'headsonly', 'vampire', 'turbo', 'ice', 'arsenal', 'radar'];
@@ -7132,7 +7137,7 @@ const Mut = (() => {
   const radar = () => on('radar');
   // lobby: chip toggles
   function renderLobby(el, sel, onToggle) {
-    el.innerHTML = LIST.map(([k, n, d]) => `<button class="mutchip${sel.includes(k) ? ' on' : ''}" data-mut="${k}" title="${d}">${n}</button>`).join('');
+    el.innerHTML = LIST.map(([k, n, d]) => `<button class="mutchip${sel.includes(k) ? ' on' : ''}" data-mut="${k}" data-tip="<b>${n}</b><br>${d}">${n}</button>`).join('');
     el.querySelectorAll('[data-mut]').forEach(b => b.onclick = () => onToggle(b.dataset.mut));
   }
   return { LIST, KEYS, on, has, name, clean, reset, hostTick, onChaos, state, damage, onKill, loadout, onSpawn, speedMul, regen, ice, headScale, radar, renderLobby, get chaos() { return C.cur; } };
@@ -7967,7 +7972,9 @@ const MenuUI = (() => {
   const TABS = ['play', 'loadout', 'look', 'progress', 'cases', 'settings'];
   let bound = false;
   const cur = () => Settings.mode === 'playlist' ? 'playlist' : (MODES[Settings.mode] ? Settings.mode : 'ffa');
-  const card = (k, name, m, wide) => `<button class="mcard${cur() === k ? ' sel' : ''}${wide ? ' wide' : ''}" data-mode="${k}"><span class="mi">${m.i}</span><span class="mt"><b>${name}</b><small>${m.s}</small></span><span class="mtags">${m.t.map(t => `<em>${t}</em>`).join('')}</span></button>`;
+  const TAGTIP = { FFA: 'Free-for-all: everyone fights everyone', TEAMS: 'Two teams: red vs blue', ROUNDS: 'Played in rounds: you stay dead until the next round', OBJECTIVE: 'Score by holding an area, not only by killing', PARTY: 'Party mode: special roles that change each round', 'CO-OP': 'Everyone on the same side against bots', 'PICK WEAPON': 'The host picks the weapon in MATCH RULES', MIXED: 'Changes every match', '3v3 / 5v5': 'Team size set in MATCH RULES' };
+  const tagHtml = t => `<em data-tip="${TAGTIP[t] || t}">${t}</em>`;
+  const card = (k, name, m, wide) => `<button class="mcard${cur() === k ? ' sel' : ''}${wide ? ' wide' : ''}" data-mode="${k}"><span class="mi">${m.i}</span><span class="mt"><b>${name}</b><small>${m.s}</small></span><span class="mtags">${m.t.map(tagHtml).join('')}</span></button>`;
   function renderModes() {
     const el = $('modeGrid'); if (!el) return;
     let h = `<div class="mgroup"><div class="mcards">${card('playlist', 'PLAYLIST', META.playlist, true)}</div></div>`;
@@ -8008,7 +8015,7 @@ const MenuUI = (() => {
     const desc = k === 'playlist' ? 'A random mode and map every match, back to back. Each mode uses its own default target.' : modeDesc(k, buildRules(k));
     const notes = k === 'playlist' ? [] : rulesNotes(k, buildRules(k)).filter(n => !/MIN$|NO TIME LIMIT/.test(n));
     el.innerHTML = `<div class="msh"><span class="mi big">${m.i}</span><div><div class="msn">${name}</div><div class="msd">${escapeHtml(desc)}</div></div></div>` +
-      `<div class="mtags">${m.t.map(t => `<em>${t}</em>`).join('')}${notes.map(n => `<em class="cu">${escapeHtml(n)}</em>`).join('')}</div>`;
+      `<div class="mtags">${m.t.map(tagHtml).join('')}${notes.map(n => `<em class="cu">${escapeHtml(n)}</em>`).join('')}</div>`;
     const ig = $('igGrp'); if (ig) ig.style.display = k === 'instagib' ? '' : 'none';
   }
   function setTab(t) {
@@ -8020,6 +8027,7 @@ const MenuUI = (() => {
   }
   function bind() {
     if (bound) return; bound = true;
+    Tips.bind();
     document.querySelectorAll('#mTabs [data-tab]').forEach(b => b.onclick = () => { setTab(b.dataset.tab); SFX.play && SFX.play('ui_click', 0.4); });
     // sections inside tabs are always open: their summary is just the header
     document.querySelectorAll('#menu .mpanel > details.sect, #menu .mpanel .pcol > details.sect').forEach(d => { d.open = true; d.addEventListener('toggle', () => { if (!d.open) d.open = true; }); });
@@ -8029,6 +8037,74 @@ const MenuUI = (() => {
   function keys() { const el = $('tabKeys'); if (el && Profile.inv) el.textContent = Profile.inv.keys ? Profile.inv.keys : ''; }
   function refresh() { bind(); renderModes(); renderMaps(); renderHead(); keys(); }
   return { refresh, setTab, META };
+})();
+
+// =====================================================================
+//  TIPS: a quick styled tooltip for anything with data-tip (menus, HUD, pause), plus ⓘ markers on settings
+//  whose names don't explain themselves.
+// =====================================================================
+const Tips = (() => {
+  const TIP = {
+    botDiff: '<b>Bot difficulty</b><br>ADAPTIVE (RANKED) tunes the bots to your rank and is the only setting that changes your RR. The others are fixed skill levels.',
+    botCount: '<b>Bots</b><br>How many bots fill the match. Online, bots also fill empty slots.',
+    maxPlayers: '<b>Max players</b><br>How many humans can join your hosted room.',
+    botsRoomCk: '<b>Bots make room</b><br>When a friend joins a full room, a bot leaves so they can play.',
+    rotateCk: '<b>Rotate maps</b><br>Every new match on the same room moves to the next map.',
+    limitIn: '<b>Win target</b><br>What ends the match: kills, points or rounds depending on the mode.',
+    timeSel: '<b>Time limit</b><br>The match ends when time runs out; the leader wins.',
+    hpSel: '<b>Max health</b><br>Everyone\'s starting health. Lower = faster kills.',
+    respIn: '<b>Respawn delay</b><br>Seconds before you come back after dying (modes with one life per round ignore this).',
+    gravSel: '<b>Gravity</b><br>Low = floaty moon jumps, High = heavy and grounded. "Mode default" keeps what the mode uses.',
+    ammoCk: '<b>Infinite ammo</b><br>Magazines never run out and you never reload.',
+    nadesCk: '<b>Grenades</b><br>Off = nobody can throw grenades.',
+    powerCk: '<b>Power weapons</b><br>A strong pickup (railgun, maul, orbital lance...) spawns on the glowing pedestal 30 s in, then 50 s after each grab.',
+    regenCk: '<b>Health regen</b><br>Health refills on its own after 4 s without taking damage.',
+    igOneCk: '<b>One hit kills</b><br>In Instagib, any hit from the chosen weapon kills. Off = the weapon\'s normal damage.',
+    igSel: '<b>Instagib weapon</b><br>The one power weapon everyone gets, with infinite ammo.',
+    teamSizeSel: '<b>Breach team size</b><br>Players per side, filled up with bots.',
+    rawCk: '<b>Raw mouse input</b><br>Ignores Windows mouse acceleration, so the same hand movement always turns the same amount.',
+    hopCk: '<b>Auto-bunnyhop</b><br>Holding jump re-jumps the instant you land, so you keep your speed.',
+    hitStopCk: '<b>Hit-stop</b><br>A tiny freeze on kills and headshots that makes them feel punchy.',
+    outlineCk: '<b>Player outlines</b><br>A coloured outline around every player so they stand out from busy backgrounds.',
+    hpBarsCk: '<b>Health bars</b><br>Health bars over players\' heads and the name + HP readout under your crosshair.',
+    killcamCk: '<b>Kill-cam</b><br>After you die, a short replay from your killer\'s view.',
+    shakeIn: '<b>Screen shake</b><br>How much explosions and big guns shake your view.',
+    flashIn: '<b>Flash intensity</b><br>Strength of the damage flash and low-health pulse at the screen edges.',
+    gfxSel: '<b>Graphics</b><br>Visual quality only: never changes gameplay. Auto picks one for your PC and lowers resolution if FPS drops.',
+    vmFov: '<b>Viewmodel FOV</b><br>How big your own gun looks on screen. It does not change your view.',
+    enemyCol: '<b>Enemy highlight</b><br>Colour used for enemy outlines. Pick a high-contrast colour if player colours blend into maps.',
+    relayCk: '<b>Always use relay</b><br>Routes the connection through a relay server. Use it when school, work or mobile networks block direct connections.',
+    adsSens: '<b>Aim sensitivity</b><br>A multiplier on your mouse sensitivity while aiming down sights.',
+  };
+  let el = null, cur = null;
+  function show(t, x, y) {
+    el = el || document.getElementById('tip'); if (!el) return;
+    el.innerHTML = t; el.classList.add('on');
+    const r = el.getBoundingClientRect();
+    let left = x + 14, top = y + 16;
+    if (left + r.width > innerWidth - 8) left = x - r.width - 14;
+    if (top + r.height > innerHeight - 8) top = y - r.height - 12;
+    el.style.left = Math.max(8, left) + 'px'; el.style.top = Math.max(8, top) + 'px';
+  }
+  function hide() { if (el) el.classList.remove('on'); cur = null; }
+  function bind() {
+    // ⓘ markers next to settings that need explaining
+    for (const [id, t] of Object.entries(TIP)) {
+      const inp = document.getElementById(id); if (!inp) continue;
+      const row = inp.closest('.setting'); if (!row) continue;
+      const lab = inp.closest('label') || row.querySelector('span'); if (!lab || lab.querySelector('.ti')) continue;
+      const i = document.createElement('i'); i.className = 'ti'; i.textContent = 'i'; i.dataset.tip = t;
+      lab.appendChild(i);
+      (inp.closest('label') || row).dataset.tip = t;
+    }
+    document.addEventListener('mousemove', e => {
+      const t = e.target.closest && e.target.closest('[data-tip]');
+      if (!t) { if (cur) hide(); return; }
+      cur = t; show(t.dataset.tip, e.clientX, e.clientY);
+    });
+    document.addEventListener('mousedown', hide, true);
+  }
+  return { bind, TIP, show, hide };
 })();
 
 </script>
@@ -12220,7 +12296,7 @@ function renderRulesUI() {
   $('respIn').value = r.respawn; $('respVal').textContent = r.respawn + 's';
   $('gravSel').value = S.grav in GRAV_OPTS ? S.grav : 'mode';
   Mut.renderLobby($('mutChips'), Mut.clean(S.mut), k => { const cur = Mut.clean(ruleSettings().mut); setRule('mut', cur.includes(k) ? cur.filter(x => x !== k) : [...cur, k]); });
-  $('mutNote').textContent = mode === 'breach' || mode === 'trials' ? 'Mutators are off in ' + MODES[mode].name + '.' : '';
+  { const on = Mut.clean(S.mut); $('mutNote').innerHTML = mode === 'breach' || mode === 'trials' ? 'Mutators are off in ' + MODES[mode].name + '.' : on.length ? on.map(k => `<div class="mutexp"><b>${Mut.name(k)}</b> ${(Mut.LIST.find(x => x[0] === k) || [])[2] || ''}</div>`).join('') : 'None active. Hover a mutator to see what it does, click to switch it on.'; }
   $('igRow').style.display = $('igRow2').style.display = MODES[mode].igPick && Settings.mode !== 'playlist' ? '' : 'none';
   $('igSel').value = S.igw === 'random' || IG_POOL.some(w => WEAPONS[w].key === S.igw) ? S.igw : 'railgun'; $('igOneCk').checked = S.igOne !== false;
   $('ammoCk').checked = !!S.ammo; $('nadesCk').checked = S.nades !== false; $('powerCk').checked = S.power !== false; $('regenCk').checked = S.regen !== false;
