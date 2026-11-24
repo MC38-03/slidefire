@@ -2864,7 +2864,45 @@ const World = (() => {
       }
       for (const q of [[34, 0.6, 0], [-34, 0.6, 0], [0, 0.6, 34], [0, 0.6, -34], [7, 0.1, 7], [-7, 0.1, -7], [7, 0.1, -7], [-7, 0.1, 7]]) spawns.push(V(q[0], q[1], q[2]));
     },
+  }, {
+    id: 'pitch', name: 'THE PITCH', desc: 'HAMMER BALL stadium: a floating pitch with two goals. Swing it in.', modeOnly: 'hball', fixed: true,
+    theme: MAPS[0].theme, killY: -25, hills: [[0, 0, 0, 4]], power: null, shadowExt: 60,
+    build() {
+      block(0, 0, 61.6, 37.6, -2, 0, 'floor');                                  // the pitch (60 x 36 inside the boards)
+      for (const s of [-1, 1]) block(0, s * 18.4, 61.6, 0.8, 0, 1.2, 'plat');  // side boards: the ball stays in, a hammer hit still launches PLAYERS over
+      for (const s of [-1, 1]) {
+        const X = s * GOAL_X0;
+        for (const z of [-1, 1]) block(X, z * 11.9, 0.8, 13.8, 0, 3, 'wall'); // end walls either side of the goal mouth
+        block(X, 0, 0.8, 10, 4.2, 5, 'wall');                                   // crossbar
+        block(s * 33.2, 0, 4.8, 10.8, -2, 0, 'floor');                         // goal box floor
+        block(s * 35.9, 0, 0.6, 10.8, 0, 5, 'wall');                           // back of the net
+        for (const z of [-1, 1]) block(s * 33.2, z * 5.7, 4.8, 0.6, 0, 5, 'wall');
+        block(s * 33.2, 0, 4.8, 11.4, 5, 5.4, 'wall');                          // roof
+        // goal frame glow in the DEFENDING team's colour (RED defends -x)
+        const col = s < 0 ? 0xff3b3b : 0x2f8bff, gm = new THREE.MeshBasicMaterial({ color: col });
+        for (const z of [-1, 1]) { const post = new THREE.Mesh(new THREE.BoxGeometry(0.3, 4.2, 0.3), gm); post.position.set(X - s * 0.45, 2.1, z * 5.05); mapGroup.add(post); }
+        const bar = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, 10.4), gm); bar.position.set(X - s * 0.45, 4.2, 0); mapGroup.add(bar);
+        const net = new THREE.Mesh(new THREE.PlaneGeometry(10, 4.6), new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.18, side: THREE.DoubleSide, depthWrite: false }));
+        net.rotation.y = Math.PI / 2; net.position.set(s * 35.55, 2.3, 0); mapGroup.add(net);
+        const box = new THREE.Mesh(new THREE.PlaneGeometry(4.4, 10).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.12, depthWrite: false }));
+        box.position.set(s * (GOAL_X0 - 4), 0.02, 0); mapGroup.add(box);
+        jumpPad(s * 20, -12, 0, pv(3), [s * 9, 3, -4]); jumpPad(s * 20, 12, 0, pv(3), [s * 9, 3, 4]);   // launch pads: get airborne for a volley
+      }
+      // glass: only the BALL bounces off it (Brawl.glass), players fly straight through
+      const gl = new THREE.MeshBasicMaterial({ color: 0x9fe8ff, transparent: true, opacity: 0.07, side: THREE.DoubleSide, depthWrite: false });
+      const ge = new THREE.MeshBasicMaterial({ color: 0x9fe8ff, transparent: true, opacity: 0.35, depthWrite: false });
+      for (const s of [-1, 1]) {
+        const pane = new THREE.Mesh(new THREE.PlaneGeometry(60.8, 6), gl); pane.position.set(0, 4.2, s * 18); mapGroup.add(pane);
+        const top = new THREE.Mesh(new THREE.BoxGeometry(60.8, 0.08, 0.08), ge); top.position.set(0, 7.2, s * 18); mapGroup.add(top);
+        const end = new THREE.Mesh(new THREE.PlaneGeometry(36, 4.2), gl); end.rotation.y = Math.PI / 2; end.position.set(s * GOAL_X0, 7.1, 0); mapGroup.add(end);
+      }
+      const lm = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.35, depthWrite: false });
+      const line = new THREE.Mesh(new THREE.PlaneGeometry(0.25, 36).rotateX(-Math.PI / 2), lm); line.position.y = 0.02; mapGroup.add(line);
+      const circ = new THREE.Mesh(new THREE.RingGeometry(5.7, 6, 64).rotateX(-Math.PI / 2), lm); circ.position.y = 0.02; mapGroup.add(circ);
+      for (const s of [-1, 1]) for (const z of [-8, 0, 8]) spawns.push(V(s * 20, 0.2, z));
+    },
   }];
+  const GOAL_X0 = 30.4;
   const ALL = MAPS.concat(BREACH_MAPS, MODE_MAPS);
   // ---------- CUSTOM MAP (map editor, src/editor.js): one slot at the end of ALL, rebuilt from plain data ----------
   // data: { name, theme: index of the map whose sky + materials it borrows, b: [[x, z, w, d, y0, y1, mat]],
@@ -3014,7 +3052,7 @@ const World = (() => {
 
   return {
     scene, colliders, rayMeshes, pads, spawns, MAPS, load, update, setFx, setShadowSize,
-    ALL, BREACH_START: MAPS.length, BREACH_COUNT: BREACH_MAPS.length, HAMMER_MAP: MAPS.length + BREACH_MAPS.length, CUSTOM, setCustom, cleanCustom, get custom() { return CUSTOM_DEF.data; }, CMATS,
+    ALL, BREACH_START: MAPS.length, BREACH_COUNT: BREACH_MAPS.length, HAMMER_MAP: MAPS.length + BREACH_MAPS.length, PITCH_MAP: MAPS.length + BREACH_MAPS.length + 1, CUSTOM, setCustom, cleanCustom, get custom() { return CUSTOM_DEF.data; }, CMATS,
     rebuild() { if (current >= 0) { const i = current, k = scaleK; current = -1; return load(i, k); } },
     mapDef: i => ALL[i] || MAPS[0],
     get breach() { return current >= 0 && ALL[current].breach || null; },
@@ -3041,7 +3079,7 @@ const Relay = (() => {
     'wss://test.mosquitto.org:8081/mqtt',
     'wss://broker.emqx.io:8084/mqtt',      // slower, last resort
   ];
-  const NS = 'slidefire-arena-v15-relay-7q2k/';
+  const NS = 'slidefire-arena-v16-relay-7q2k/';
   const FLUSH_MS = 45, KEEPALIVE_MS = 2000, TIMEOUT_MS = 10000;
   const te = new TextEncoder(), td = new TextDecoder();
 
@@ -4601,16 +4639,19 @@ const Arms = (() => {
     if (air) {                                                                     // WHIRLWIND: 360° spin, hits all around
       const C = V3(p.pos.x, p.pos.y + 1.1, p.pos.z), r = area(p, C, 3.3, 0, 60, 25, 12, 7, 6.5, 5);
       p.vel.y = Math.max(p.vel.y, 3.5);
+      Brawl.hammerBall(p, C, 3.3, 'whirl');
       setAnim(p, 'whirl'); titanFx(C, false, 3.3, 'whirl', r.hits > 0); shout(p, 'whirl', C, r.hits > 0, false, 3.3);
       return true;
     }
     if (p.pitch > 0.42) {                                                          // UPPERCUT: launches them straight up
       const C = swingCenter(p, V3(), 1.9, -0.2, 0.25), r = area(p, C, 2.1, 0, 45, 20, 3, 2, 16, 12);
+      Brawl.hammerBall(p, C, 2.1, 'upper');
       setAnim(p, 'upper'); titanFx(C, false, 2.1, 'upper', r.hits > 0); shout(p, 'upper', C, r.hits > 0, false, 2.1);
       return true;
     }
     const C = swingCenter(p, V3()), r = area(p, C, TITAN.R, TITAN.sweet, 100, 25, 12, 6, 6, 4);   // SWING
     if (r.sweet && p === me) { showHitmarker('crit kill', 0.4); shakeAmt += 0.3; }
+    Brawl.hammerBall(p, C, TITAN.R, 'swing');
     setAnim(p, 'swing'); titanFx(C, r.sweet, TITAN.R, 'swing', r.hits > 0); shout(p, 'swing', C, r.hits > 0, r.sweet, TITAN.R);
     return true;
   }
@@ -4729,6 +4770,7 @@ const Arms = (() => {
   }
   // slam / leap landing: a blast through the normal explosion path; onBoom (every client) does the show
   function titanBoom(p, k, at) {
+    Brawl.hammerBall(p, at, PROJ[k].splash * (k === 'tshock' ? 1 : 0.8), k === 'tdash' ? 'leap' : k === 'tshock' ? 'shock' : 'dive');
     const m = { t: 'x', k, w: W_TITAN, id: p.id, rid: p.id + '_t' + (seq++), p: arr(at) };
     explode(m); send(m);
   }
@@ -4788,6 +4830,7 @@ const Arms = (() => {
       th.spin += dt * 20;
       th.g.position.copy(th.pos); th.g.rotation.set(th.spin, Math.atan2(-th.dir.x, -th.dir.z), 0, 'YXZ');
       for (let j = 0; j < 3; j++) spawnParticle(th.pos.clone().add(V3(rand(-.3, .3), rand(-.3, .3), rand(-.3, .3))), V3(rand(-1, 1), rand(-1, 1), rand(-1, 1)), j ? 0xffb020 : 0xffffff, 0.22, 0.3, 0, true);
+      if (th.auth && !th.ball && Brawl.hammerBall(own, th.pos, 1.7, 'throw', th.dir)) th.ball = true;
       if (th.auth) for (const q of players.values()) {
         if (!q.alive || q === own || allies(own, q) || th.hit.has(q.id)) continue;
         const c = chestPos(q, V3()); if (c.distanceTo(th.pos) > 1.6) continue;
@@ -7410,7 +7453,7 @@ function botInput(b, dt) {
     ai.losT = 0.2;
     let best = null, bs = 1e9;
     for (const p of players.values()) {
-      if (p === b || !p.alive || p.spawnProt > 0.8 || allies(b, p) || Party.ignore(b, p)) continue;
+      if (p === b || !p.alive || p.spawnProt > 0.8 || allies(b, p) || Party.ignore(b, p) || Brawl.ignore(b, p)) continue;
       const d = p.pos.distanceTo(b.pos);
       const vis = d < 90 && hasLOS(eye, chestPos(p, V3()));
       const score = d - (vis ? 40 : 0) - (ai.target === p && time - ai.provoked < 3 ? 25 : 0);
@@ -7428,7 +7471,7 @@ function botInput(b, dt) {
   const ST = BOT_STYLES[b.style] || BOT_STYLES.aggressive;
   const ptGoal = Party.on() ? Party.botGoal(b) : null;
   if (ptGoal === 'hold') { b.yaw += dt * 0.15; return inp; }   // HIDE & SEEK: a hiding prop stays perfectly still
-  const brGoal = match.mode === 'breach' ? Breach.botGoal(b) : ptGoal;
+  const brGoal = match.mode === 'breach' ? Breach.botGoal(b) : match.mode === 'hball' ? Brawl.botGoal(b) : ptGoal;
   const goal = !h ? (brGoal || (match.mode === 'breach' ? null : botPowerGoal(b, ai, ST))) : null;
   if (ai.detourT > 0) ai.detourT -= dt;
   const mv = goal && ai.detourT > 0 ? ai.detour : goal;   // stuck on the way: sidestep for a moment
@@ -7614,10 +7657,18 @@ const Mut = (() => {
     ['ice', 'ICE RINK', 'Every floor is slippery ice: you keep sliding, stopping and turning take time'],
     ['arsenal', 'ARSENAL', 'Every time you spawn you also get a random power weapon (railgun, maul, sentinel...)'],
     ['radar', 'OPEN RADAR', 'All enemies show on the radar all the time, not only when they shoot'],
+    ['bounce', 'BOUNCE HOUSE', 'Every floor is a trampoline: land hard and you bounce back up (hold crouch to stick the landing)'],
+    ['glass', 'GLASS CANNON', 'Every hit does DOUBLE damage. Fights are over in a blink'],
+    ['heavy', 'HEAVY HITTERS', 'Every hit shoves the target away (harder for bigger hits). Great on maps with drops'],
+    ['adrenaline', 'ADRENALINE', 'Every kill fully heals you and gives 6 s of OVERDRIVE (faster movement)'],
+    ['volatile', 'VOLATILE', 'Everyone explodes half a second after dying. The blast counts for whoever killed them: chain reactions!'],
+    ['lava', 'FLOOR IS LAVA', 'Standing on the ground for more than 1.2 s starts burning you. Keep jumping, sliding off ledges and wall-running'],
+    ['djump', 'DOUBLE JUMP', 'Everyone gets one extra jump in mid-air'],
+    ['meteors', 'METEORS', 'Meteors rain down near players every few seconds. A red circle marks each impact about 1.7 s before it hits: get out of it'],
     ['chaos', 'CHAOS', 'Every 40 s the host switches on ONE random extra mutator (big heads, one shot, ice rink, turbo...) for everyone, until the next one replaces it. An announcement says which'],
   ];
   const KEYS = LIST.map(x => x[0]);
-  const CHAOS_POOL = ['bighead', 'oneshot', 'headsonly', 'vampire', 'turbo', 'ice', 'arsenal', 'radar'];
+  const CHAOS_POOL = ['bighead', 'oneshot', 'headsonly', 'vampire', 'turbo', 'ice', 'arsenal', 'radar', 'meteors', 'bounce', 'glass', 'heavy', 'adrenaline', 'volatile', 'lava', 'djump'];
   const C = { cur: null, t: 0 };
   const has = k => !!(typeof R !== 'undefined' && R && R.mut && R.mut.includes(k));
   const on = k => has(k) || C.cur === k;
@@ -7649,9 +7700,45 @@ const Mut = (() => {
     const W = WEAPONS[info.w];
     if (on('headsonly') && !info.h && !(W && W.melee)) return 0;
     if (on('oneshot') && dmg > 0) return 999;
+    if (on('heavy') && dmg > 0 && !info.kb) { info.kb = Math.min(16, 3 + dmg * 0.12); info.kbUp = 3.5; }   // HEAVY HITTERS (shove rides along in the hit)
+    if (on('glass')) dmg *= 2;
     return dmg;
   }
-  function onKill(k) { if (on('vampire') && k && owns(k) && k.alive) k.hp = Math.min(Math.round(R.hp * 1.5), k.hp + 60); }
+  function onKill(k) {
+    if (on('vampire') && k && owns(k) && k.alive) k.hp = Math.min(Math.round(R.hp * 1.5), k.hp + 60);
+    if (on('adrenaline') && k && owns(k) && k.alive) { k.hp = Math.max(k.hp, k.maxHp || R.hp); k.overdrive = Math.max(k.overdrive || 0, 6); if (k === me) toast('ADRENALINE', 'healed + overdrive'); }
+  }
+  // VOLATILE: the dead body's owner sets off the blast, credited to the killer
+  const booms = [];
+  function onDeath(v, k) { if (on('volatile') && owns(v)) booms.push({ at: time + 0.5, p: v.pos.clone(), id: k && k !== v ? k.id : v.id, w: k && k !== v ? k.weapon : W_ROCKET }); }
+  function tickBooms() {
+    for (let i = booms.length - 1; i >= 0; i--) {
+      const b = booms[i]; if (time < b.at) continue; booms.splice(i, 1);
+      if (mode !== 'game' || match.state !== 'playing') continue;
+      const m = { t: 'x', k: 'boom', w: b.w, id: b.id, rid: 'vb' + Math.random().toString(36).slice(2, 8), p: arr(b.p.add(new THREE.Vector3(0, 0.6, 0))) };
+      explode(m); send(m);
+    }
+  }
+  // FLOOR IS LAVA: per owned player, every frame
+  let lavaEl = null;
+  function ownTick(p, dt) {
+    if (!on('lava') || !p.alive || match.state !== 'playing' || match.cd > 0) { p.lavaT = 0; if (p === me && lavaEl) lavaEl.style.display = 'none'; return; }
+    p.lavaT = p.onGround && !p.wallRunning ? (p.lavaT || 0) + dt : 0;
+    if (p.lavaT > 1.2 && (p.lavaD = (p.lavaD || 0) + dt) > 0.2) {
+      p.lavaD = 0;
+      applyDamage(p, 3, { a: p.id, w: W_VOID, lava: 1, h: false, c: false, dist: 0 });
+      for (let i = 0; i < 4; i++) spawnParticle(new THREE.Vector3(p.pos.x + rand(-.4, .4), p.pos.y + 0.1, p.pos.z + rand(-.4, .4)), new THREE.Vector3(rand(-1, 1), rand(2, 5), rand(-1, 1)), i % 2 ? 0xff5a10 : 0xffc040, 0.12, 0.5, -2, true);
+      if (p === me) SFX.play('hurt', 0.3);
+    }
+    if (p === me) {
+      if (!lavaEl) { lavaEl = document.createElement('div'); lavaEl.style.cssText = 'position:fixed;left:50%;bottom:120px;transform:translateX(-50%);font:700 15px Orbitron,sans-serif;color:#ff7a20;text-shadow:0 2px 6px #000;pointer-events:none;z-index:5'; document.body.appendChild(lavaEl); }
+      const k = Math.min(1, p.lavaT / 1.2);
+      lavaEl.style.display = k > 0.25 ? '' : 'none';
+      lavaEl.textContent = k >= 1 ? '🔥 BURNING: GET OFF THE FLOOR' : '🔥 FLOOR IS LAVA ' + '▮'.repeat(Math.ceil(k * 6));
+    }
+  }
+  const bounce = () => on('bounce');
+  const djump = () => on('djump');
   function loadout(p) {
     if (!on('knives') || (R && R.tp)) return;   // HAMMERFALL keeps its hammer
     p.loadout = [W_BLADE]; p.weapon = W_BLADE; p.lastWeapon = W_BLADE;
@@ -7672,7 +7759,7 @@ const Mut = (() => {
     el.innerHTML = LIST.map(([k, n, d]) => `<button class="mutchip${sel.includes(k) ? ' on' : ''}" data-mut="${k}" data-tip="<b>${n}</b><br>${d}">${n}</button>`).join('');
     el.querySelectorAll('[data-mut]').forEach(b => b.onclick = () => onToggle(b.dataset.mut));
   }
-  return { LIST, KEYS, on, has, name, clean, reset, hostTick, onChaos, state, damage, onKill, loadout, onSpawn, speedMul, regen, ice, headScale, radar, renderLobby, get chaos() { return C.cur; } };
+  return { onDeath, ownTick, tickBooms, bounce, djump, LIST, KEYS, on, has, name, clean, reset, hostTick, onChaos, state, damage, onKill, loadout, onSpawn, speedMul, regen, ice, headScale, radar, renderLobby, get chaos() { return C.cur; } };
 })();
 
 </script>
@@ -8373,6 +8460,331 @@ const Party = (() => {
 })();
 
 </script>
+<script>/* src/brawl.js */
+'use strict';
+// =====================================================================
+//  brawl.js — the HAMMERFALL family (module Brawl). All of them use the TITAN HAMMER in third person.
+//   SMASHFALL (mode 'smash'): damage never kills. Every hit raises your DAMAGE % (hp counts down from 999, shown
+//     as %), and knockback grows with it. The only way to die is a ring-out; the last hitter scores.
+//     Hooks: applyDamage -> smashDmg, applyBlast -> kbMul, HUD / health bars -> pct.
+//   HAMMER BALL (mode 'hball'): Red vs Blue soccer on THE PITCH. The host simulates the ball and streams it ('bb',
+//     20 Hz). Hammer moves kick it (Arms calls hammerBall); clients predict their own kick and send it ('bh').
+//     Goals ('bg') are scored by the host: team 0 (RED) attacks the +x goal.
+//   METEORS (mutator 'meteors', any mode): the host drops marked meteor strikes near players ('met'); every client
+//     damages only the players it owns.
+// =====================================================================
+const Brawl = (() => {
+  const isHammer = m => m === 'hammer' || m === 'smash' || m === 'hball';
+  const isHost = () => !!(net && net.isHost);
+  const rc = new THREE.Raycaster();
+  const down = new THREE.Vector3(0, -1, 0);
+  function groundAt(x, y, z, far = 60) {
+    rc.set(new THREE.Vector3(x, y, z), down); rc.far = far;
+    const h = rc.intersectObjects(World.rayMeshes, false)[0];
+    return h ? h.point.clone() : null;
+  }
+
+  // =================== SMASHFALL ===================
+  const SM = 999;
+  const smash = () => match.mode === 'smash';
+  const pct = p => Math.max(0, Math.round(SM - (p.hp || 0)));
+  // knockback multiplier from the victim's damage %: 0.75x fresh, ~2.3x at 100%, ~3.8x at 200%
+  const kbMul = p => smash() && p ? 0.75 + pct(p) / 65 : 1;
+  // owner side, inside applyDamage: scale the shove by the % so far, add the new %, never kill
+  function smashDmg(v, dmg, info) {
+    if (info && Number.isFinite(info.kb) && info.kb) {
+      const m = kbMul(v);
+      info.kb *= m;
+      info.kbUp = (Number.isFinite(info.kbUp) ? info.kbUp : 1.6) * (0.9 + (m - 0.75) * 0.3);
+    }
+    return Math.max(0, Math.min(Math.round(dmg * 0.42), v.hp - 1));
+  }
+  const pctColor = pc => pc < 50 ? '#ffffff' : pc < 100 ? '#ffd23a' : pc < 150 ? '#ff8a2a' : '#ff3b3b';
+
+  // =================== HAMMER BALL ===================
+  const GOAL_X = 30.4, GOAL_W = 5, GOAL_H = 4.2;
+  const B = { r: 0.95, pos: new THREE.Vector3(0, 3, 0), vel: new THREE.Vector3(), mesh: null, glow: null, last: null, score: [0, 0], kick: 0, sendT: 0, srv: null, srvT: 0, predT: -9, ring: null };
+  const ballOn = () => match.mode === 'hball' && mode === 'game';
+  function makeBall() {
+    if (B.mesh) return;
+    const g = new THREE.Group();
+    const core = new THREE.Mesh(new THREE.IcosahedronGeometry(B.r, 2), new THREE.MeshStandardMaterial({ color: 0xf4f1e8, roughness: 0.35, metalness: 0.1, flatShading: true }));
+    const cage = new THREE.Mesh(new THREE.IcosahedronGeometry(B.r * 1.01, 1), new THREE.MeshBasicMaterial({ color: 0xff9a20, wireframe: true }));
+    g.add(core, cage);
+    B.glow = new THREE.Mesh(new THREE.SphereGeometry(B.r * 1.45, 16, 12), new THREE.MeshBasicMaterial({ color: 0xffb040, transparent: true, opacity: 0.18, depthWrite: false, blending: THREE.AdditiveBlending }));
+    g.add(B.glow);
+    B.ring = new THREE.Mesh(new THREE.RingGeometry(0.75, 1, 32).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xffb040, transparent: true, opacity: 0.5, depthWrite: false }));   // shadow marker on the floor
+    scene.add(g, B.ring); B.mesh = g;
+  }
+  function dropBall() { if (!B.mesh) return; scene.remove(B.mesh, B.ring); B.mesh = null; B.ring = null; }
+  function kickoff(hold) { B.pos.set(0, 3.2, 0); B.vel.set(0, 0, 0); B.kick = hold; B.last = null; }
+  // sphere vs the map's boxes, substepped so a hard shot can't tunnel through a wall
+  function stepBall(dt) {
+    const n = Math.max(1, Math.ceil(B.vel.length() * dt / 0.3)), h = dt / n, r = B.r;
+    for (let i = 0; i < n; i++) {
+      B.vel.y -= 22 * h;
+      B.pos.addScaledVector(B.vel, h);
+      let ground = false;
+      for (const c of World.colliders) {
+        if (B.pos.x < c.min.x - r || B.pos.x > c.max.x + r || B.pos.y < c.min.y - r || B.pos.y > c.max.y + r || B.pos.z < c.min.z - r || B.pos.z > c.max.z + r) continue;
+        const dx = B.pos.x - clamp(B.pos.x, c.min.x, c.max.x), dy = B.pos.y - clamp(B.pos.y, c.min.y, c.max.y), dz = B.pos.z - clamp(B.pos.z, c.min.z, c.max.z);
+        const d2 = dx * dx + dy * dy + dz * dz; if (d2 >= r * r) continue;
+        let d = Math.sqrt(d2), nx = 0, ny = 1, nz = 0;
+        if (d > 1e-4) { nx = dx / d; ny = dy / d; nz = dz / d; } else d = 0;
+        B.pos.x += nx * (r - d); B.pos.y += ny * (r - d); B.pos.z += nz * (r - d);
+        const vn = B.vel.x * nx + B.vel.y * ny + B.vel.z * nz;
+        if (vn < 0) { const e = ny > 0.7 && -vn < 3 ? 0 : 0.62; B.vel.x -= (1 + e) * vn * nx; B.vel.y -= (1 + e) * vn * ny; B.vel.z -= (1 + e) * vn * nz; }
+        if (ny > 0.7) ground = true;
+      }
+      if (ground) { const f = Math.exp(-0.8 * h); B.vel.x *= f; B.vel.z *= f; }
+      glass(r);
+    }
+    B.vel.multiplyScalar(Math.exp(-0.12 * dt));
+  }
+  // glass walls around the pitch that only the BALL bounces off (players still fly over the boards)
+  const SIDE_Z = 18, ROOF = 16;
+  function glass(r) {
+    const ax = Math.abs(B.pos.x), az = Math.abs(B.pos.z);
+    if (ax < GOAL_X && az > SIDE_Z - r) { B.pos.z = Math.sign(B.pos.z) * (SIDE_Z - r); if (B.vel.z * B.pos.z > 0) B.vel.z *= -0.7; }
+    const mouth = az < GOAL_W - 0.25 && B.pos.y < GOAL_H - 0.2;
+    if (!mouth && ax > GOAL_X - r && ax < GOAL_X + 0.5) { B.pos.x = Math.sign(B.pos.x) * (GOAL_X - r); if (B.vel.x * B.pos.x > 0) B.vel.x *= -0.7; }
+    if (B.pos.y > ROOF - r) { B.pos.y = ROOF - r; if (B.vel.y > 0) B.vel.y *= -0.5; }
+  }
+  // players walking into the ball nudge it (dribbling)
+  function bodyPush() {
+    for (const p of players.values()) {
+      if (!p.alive) continue;
+      const dx = B.pos.x - p.pos.x, dz = B.pos.z - p.pos.z, dh = Math.hypot(dx, dz);
+      if (dh > B.r + 0.45 || B.pos.y > p.pos.y + 2.2 || B.pos.y < p.pos.y - 0.6 || dh < 1e-3) continue;
+      const nx = dx / dh, nz = dz / dh, push = B.r + 0.45 - dh;
+      B.pos.x += nx * push; B.pos.z += nz * push;
+      const along = B.vel.x * nx + B.vel.z * nz, want = Math.hypot(p.vel.x, p.vel.z) * 1.15 + 1;
+      if (along < want) { B.vel.x += nx * (want - along); B.vel.z += nz * (want - along); }
+    }
+  }
+  const near = (C, R) => ballOn() && B.mesh && B.kick <= 0 && B.pos.distanceTo(C) <= R + B.r;
+  // a hammer move at C (radius R) hits the ball: each move has its own shot
+  function hammerBall(p, C, R, kind, dir) {
+    if (!p || !near(C, R + 0.2)) return false;
+    const fx = -Math.sin(p.yaw), fz = -Math.cos(p.yaw), loft = clamp(p.pitch, -0.2, 0.75);
+    const away = new THREE.Vector3(B.pos.x - C.x, 0, B.pos.z - C.z); if (away.lengthSq() < 1e-3) away.set(fx, 0, fz); away.normalize();
+    let v;
+    if (kind === 'swing') v = new THREE.Vector3(fx * 26, 5 + loft * 22, fz * 26);                        // a drive: look up to loft it
+    else if (kind === 'upper') v = new THREE.Vector3(fx * 7, 24, fz * 7);                                // pops it sky-high
+    else if (kind === 'whirl') v = away.multiplyScalar(21).setY(9);                                      // spins it out sideways
+    else if (kind === 'throw') v = new THREE.Vector3(dir.x, 0, dir.z).normalize().multiplyScalar(24).setY(7);
+    else if (kind === 'shock') v = away.multiplyScalar(9).setY(6).add(B.vel);
+    else v = away.multiplyScalar(25).setY(15);                                                          // leap / dive landings blast it away
+    const power = kind !== 'shock' && B.pos.distanceTo(C) < 1.3;
+    if (power) v.multiplyScalar(1.22);
+    if (v.length() > 52) v.setLength(52);
+    kick(v, p.id, power);
+    if (!isHost()) send({ t: 'bh', id: p.id, v: arr(v), pw: power ? 1 : 0 });
+    return true;
+  }
+  function kick(v, id, power) {
+    B.vel.copy(v); B.last = id; B.predT = isHost() ? -9 : time;
+    kickFx(power);
+    if (isHost()) sendBall(true, power);
+  }
+  function kickFx(power) {
+    play3D(power ? 'hSweet' : 'hHit', B.pos, 1);
+    for (let i = 0; i < (power ? 22 : 12); i++) spawnParticle(B.pos.clone(), new THREE.Vector3(rand(-6, 6), rand(-2, 6), rand(-6, 6)), power ? 0xff6030 : 0xffd060, 0.12, 0.35, 4, true);
+    if (power && B.last === (me && me.id)) showAnnounce('POWER SHOT', '');
+  }
+  function sendBall(kf, pw) { B.sendT = time; send({ t: 'bb', p: arr(B.pos), v: arr(B.vel), s: B.score, k: Math.round(B.kick * 10) / 10, l: B.last, kf: kf ? 1 : 0, pw: pw ? 1 : 0 }); }
+  function hostBall(dt) {
+    if (B.kick > 0) { B.kick -= dt; B.pos.set(0, 3.2 + Math.sin(time * 2) * 0.25, 0); B.vel.set(0, 0, 0); if (B.kick <= 0) { B.kick = 0; SFX.play('medal'); } }
+    else {
+      stepBall(dt); bodyPush();
+      if (Math.abs(B.pos.x) > GOAL_X + B.r && Math.abs(B.pos.z) < GOAL_W && B.pos.y < GOAL_H) {
+        const team = B.pos.x > 0 ? 0 : 1, by = players.get(B.last);
+        B.score[team]++;
+        const m = { t: 'bg', team, s: B.score.slice(), by: by ? by.id : null, at: arr(B.pos) };
+        send(m); onGoal(m);
+        kickoff(3.5);
+        if (B.score[team] >= R.limit) setTimeout(() => { if (match.state === 'playing' && match.mode === 'hball') endMatch(); }, 1500);
+      } else if (B.pos.y < -14) { feedText('BALL OUT · kickoff', 0xffb040); kickoff(2); }
+    }
+    if (time - B.sendT > 0.05) sendBall(false);
+  }
+  function clientBall(dt) {
+    if (B.kick > 0) { B.kick -= dt; B.pos.set(0, 3.2 + Math.sin(time * 2) * 0.25, 0); B.vel.set(0, 0, 0); return; }
+    stepBall(dt); bodyPush();
+    if (!B.srv || time - B.predT < 0.3) return;   // just kicked it ourselves: trust the prediction until the host's answer arrives
+    const age = Math.min(0.25, time - B.srvT), tx = B.srv.p[0] + B.srv.v[0] * age, ty = B.srv.p[1] + B.srv.v[1] * age - 11 * age * age, tz = B.srv.p[2] + B.srv.v[2] * age;
+    const ex = tx - B.pos.x, ey = ty - B.pos.y, ez = tz - B.pos.z;
+    if (ex * ex + ey * ey + ez * ez > 16) B.pos.set(tx, ty, tz);
+    else { const k = 1 - Math.exp(-8 * dt); B.pos.x += ex * k; B.pos.y += ey * k; B.pos.z += ez * k; }
+    const kv = 1 - Math.exp(-5 * dt); B.vel.x = lerp(B.vel.x, B.srv.v[0], kv); B.vel.y = lerp(B.vel.y, B.srv.v[1], kv); B.vel.z = lerp(B.vel.z, B.srv.v[2], kv);
+  }
+  function onGoal(m) {
+    if (!Array.isArray(m.s) || m.s.length !== 2) return;
+    B.score = [m.s[0] | 0, m.s[1] | 0];
+    const team = m.team === 1 ? 1 : 0, by = players.get(m.by), own = by && by.team !== team;
+    if (by && !own) by.rw = (by.rw | 0) + 1;
+    const at = Array.isArray(m.at) ? new THREE.Vector3().fromArray(m.at) : B.pos.clone();
+    Arms.titanFx(at, true, 6, 'diveland', true);
+    for (let i = 0; i < 60; i++) spawnParticle(at.clone(), new THREE.Vector3(rand(-9, 9), rand(3, 14), rand(-9, 9)), i % 2 ? TEAM_COLORS[team] : 0xffffff, 0.16, 1.1, 9, true);
+    const mine = me && me.team === team;
+    showAnnounce(own ? 'OWN GOAL' : 'GOAL!', `${TEAM_NAMES[team]} ${B.score[0]} – ${B.score[1]}` + (by ? ' · ' + escapeHtml(by.name) : ''));
+    SFX.play(mine ? 'medal' : 'hLand'); if (SFX.announce) SFX.announce(mine ? 'taken the lead' : 'lost the lead');
+    if (by === me && !own && typeof xpPopup === 'function') xpPopup('GOAL', 150, '#ffd23a');
+    feedText((own ? 'OWN GOAL · ' : 'GOAL · ') + (by ? by.name : TEAM_NAMES[team]), TEAM_COLORS[team]);
+    refreshChips();
+  }
+  function onMsg(m) {
+    if (m.t === 'bb') {
+      if (isHost() || !Array.isArray(m.p) || !Array.isArray(m.v) || !m.p.every(Number.isFinite) || !m.v.every(Number.isFinite)) return;
+      B.srv = { p: m.p, v: m.v }; B.srvT = time; B.kick = Math.max(0, +m.k || 0); B.last = m.l || null;
+      if (Array.isArray(m.s)) { const ch = m.s[0] !== B.score[0] || m.s[1] !== B.score[1]; B.score = [m.s[0] | 0, m.s[1] | 0]; if (ch) refreshChips(); }
+      if (m.kf && m.l !== (me && me.id)) { B.pos.fromArray(m.p); B.vel.fromArray(m.v); kickFx(!!m.pw); }
+    } else if (m.t === 'bh') {
+      if (!isHost() || !ballOn() || B.kick > 0 || !Array.isArray(m.v) || !m.v.every(Number.isFinite)) return;
+      const p = players.get(m.id); if (!p || !p.alive || p.pos.distanceTo(B.pos) > 11) return;
+      const v = new THREE.Vector3().fromArray(m.v); if (v.length() > 60) v.setLength(60);
+      kick(v, p.id, !!m.pw);
+    } else if (m.t === 'bg') { if (!isHost()) onGoal(m); }
+    else if (m.t === 'met') onMeteor(m);
+  }
+  // team spawns on your own half (RED defends -x)
+  function spawnPoint(p) {
+    if (match.mode !== 'hball' || p.team < 0) return null;
+    const s = p.team === 0 ? -1 : 1;
+    return new THREE.Vector3(s * rand(15, 24), 0.2, rand(-10, 10));
+  }
+  // bots: get behind the ball (relative to the goal they attack), defenders hang back
+  const attackX = b => b.team === 0 ? GOAL_X + 1 : -GOAL_X - 1;
+  const role = b => { let h = 0; for (const ch of String(b.id)) h = (h * 31 + ch.charCodeAt(0)) | 0; return Math.abs(h) % 3 === 2 ? 'def' : 'att'; };
+  function botGoal(b) {
+    if (!ballOn()) return null;
+    const gx = attackX(b), ownX = -gx;
+    if (B.kick > 0) return new THREE.Vector3(Math.sign(ownX) * 6, 0, (role(b) === 'def' ? 0 : 6) * (b.pos.z > 0 ? 1 : -1));
+    if (role(b) === 'def' && Math.abs(B.pos.x - ownX) > 22) return new THREE.Vector3(lerp(ownX, B.pos.x, 0.35), 0, B.pos.z * 0.4);
+    const dx = gx - B.pos.x, dz = -B.pos.z, l = Math.hypot(dx, dz) || 1;
+    const behind = new THREE.Vector3(B.pos.x - dx / l * 2.2, 0, B.pos.z - dz / l * 2.2);
+    // on the wrong side of the ball: swing around it instead of pushing it into our own goal
+    const ahead = ((b.pos.x - B.pos.x) * dx + (b.pos.z - B.pos.z) * dz) / l;
+    if (ahead > 0.5) behind.z += (b.pos.z > B.pos.z ? 1 : -1) * 3;
+    return behind;
+  }
+  const ignore = (b, p) => match.mode === 'hball' && p.pos.distanceTo(b.pos) > 4.5;   // bots play the ball, not the man (unless he's in the way)
+  function botAdjust(b, inp, dt) {
+    if (!ballOn() || !b.alive || B.kick > 0) return;
+    const dx = B.pos.x - b.pos.x, dz = B.pos.z - b.pos.z, dh = Math.hypot(dx, dz);
+    if (dh > 3.4 || Math.abs(B.pos.y - b.pos.y - 0.8) > 2.6) return;
+    const gx = attackX(b), tx = gx - B.pos.x, tz = -B.pos.z, tl = Math.hypot(tx, tz) || 1;
+    const behind = (dx * tx + dz * tz) / (dh * tl || 1);
+    if (behind < -0.1) return;   // the swing would send it backwards
+    b.yaw = angleLerp(b.yaw, Math.atan2(-(dx * 0.5 + tx / tl * dh * 0.5), -(dz * 0.5 + tz / tl * dh * 0.5)), 1 - Math.exp(-14 * dt));
+    b.pitch = lerp(b.pitch, Math.abs(gx - b.pos.x) > 22 ? 0.25 : 0.05, 1 - Math.exp(-10 * dt));
+    inp.fire = true; inp.f = 1;
+  }
+
+  // =================== METEORS ===================
+  const mets = [];
+  let metT = 6;
+  const MET = { R: 4.4, dmg: 75, knock: 15, fall: 1.7 };
+  function hostMeteors(dt) {
+    if (!(Mut.on && Mut.on('meteors'))) return;
+    if ((metT -= dt) > 0) return;
+    metT = rand(2.2, 4.2);
+    const alive = [...players.values()].filter(p => p.alive);
+    if (!alive.length) return;
+    const p = alive[Math.floor(Math.random() * alive.length)], a = Math.random() * Math.PI * 2, r = rand(0, 6);
+    const g = groundAt(p.pos.x + Math.cos(a) * r, p.pos.y + 20, p.pos.z + Math.sin(a) * r, 50);
+    if (!g) return;
+    const m = { t: 'met', p: arr(g), d: MET.fall };
+    send(m); onMeteor(m);
+  }
+  function onMeteor(m) {
+    if (mode !== 'game' || !Array.isArray(m.p) || m.p.length !== 3 || !m.p.every(Number.isFinite)) return;
+    const E = new THREE.Vector3().fromArray(m.p), d = clamp(+m.d || MET.fall, 0.8, 3);
+    const mark = new THREE.Mesh(new THREE.RingGeometry(0.9, 1, 48).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xff3a20, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }));
+    const fill = new THREE.Mesh(new THREE.CircleGeometry(1, 32).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xff5020, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }));
+    mark.position.set(E.x, E.y + 0.06, E.z); fill.position.copy(mark.position);
+    const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(0.9, 0), new THREE.MeshBasicMaterial({ color: 0xffa040 }));
+    const dir = new THREE.Vector3(rand(-0.4, 0.4), 1, rand(-0.4, 0.4)).normalize();
+    scene.add(mark, fill, rock);
+    mets.push({ E, d, t: 0, mark, fill, rock, dir });
+    play3D('hDive', E, 0.6);
+  }
+  function updateMeteors(dt) {
+    for (let i = mets.length - 1; i >= 0; i--) {
+      const o = mets[i]; o.t += dt; const k = Math.min(1, o.t / o.d);
+      o.mark.scale.setScalar(MET.R * lerp(1.5, 1, k)); o.mark.material.opacity = Math.min(1, o.t * 5) * (0.55 + 0.4 * Math.sin(o.t * (10 + k * 30)));
+      o.fill.scale.setScalar(MET.R * k); o.fill.material.opacity = 0.28 * k;
+      o.rock.position.copy(o.E).addScaledVector(o.dir, 55 * (1 - k * k) + 0.5); o.rock.rotation.x += dt * 6; o.rock.rotation.y += dt * 4;
+      if (k < 1) { for (let j = 0; j < 3; j++) spawnParticle(o.rock.position.clone().add(new THREE.Vector3(rand(-.4, .4), rand(-.4, .4), rand(-.4, .4))), o.dir.clone().multiplyScalar(rand(4, 10)), j ? 0xff7a20 : 0xffe0a0, 0.3, 0.4, 0, true); continue; }
+      scene.remove(o.mark, o.fill, o.rock); [o.mark, o.fill, o.rock].forEach(x => { x.geometry.dispose(); x.material.dispose(); }); mets.splice(i, 1);
+      impact(o.E);
+    }
+  }
+  function impact(E) {
+    Arms.titanFx(E.clone().add(new THREE.Vector3(0, 0.5, 0)), false, MET.R, 'diveland', true);
+    if (typeof explosionFx === 'function') explosionFx(E.clone().add(new THREE.Vector3(0, 0.5, 0)), MET.R, false);
+    for (const p of players.values()) {
+      if (!owns(p) || !p.alive || p.spawnProt > 0) continue;
+      const body = new THREE.Vector3(p.pos.x, p.pos.y + 0.9, p.pos.z), dd = body.distanceTo(E);
+      if (dd > MET.R) continue;
+      const f = 1 - dd / MET.R, dir = body.sub(E); if (dir.lengthSq() < 1e-4) dir.set(0, 1, 0); dir.normalize(); dir.y += 0.9; dir.normalize();
+      p.vel.addScaledVector(dir, MET.knock * (0.4 + 0.6 * f) * kbMul(p)); p.onGround = false;
+      applyDamage(p, Math.round(MET.dmg * (0.3 + 0.7 * f)), { a: p.id, w: W_VOID, met: 1, h: false, c: false, dist: 0 });
+    }
+  }
+
+  // =================== shared ===================
+  let infoEl = null;
+  function hud() {
+    if (!infoEl) { infoEl = document.createElement('div'); infoEl.id = 'brawlInfo'; infoEl.style.cssText = 'position:fixed;left:50%;top:86px;transform:translateX(-50%);font:700 18px Orbitron,sans-serif;color:#ffd23a;text-shadow:0 2px 6px #000;pointer-events:none;z-index:5;text-align:center'; document.body.appendChild(infoEl); }
+    const on = ballOn() && B.kick > 0 && match.state === 'playing';
+    const txt = on ? 'KICKOFF ' + Math.ceil(B.kick) : '';
+    if (infoEl.textContent !== txt) infoEl.textContent = txt;
+  }
+  let markEl = null;
+  function ballMarker() {   // an on-screen pointer to the ball (clamped to the screen edge when it's off-screen)
+    if (!markEl) { markEl = document.createElement('div'); markEl.style.cssText = 'position:fixed;width:26px;height:26px;margin:-13px 0 0 -13px;border-radius:50%;border:3px solid #ffb040;box-shadow:0 0 10px #ffb040;pointer-events:none;z-index:4;font:700 11px Rajdhani,sans-serif;color:#ffd23a;text-align:center;line-height:20px'; document.body.appendChild(markEl); }
+    const show = ballOn() && B.mesh && match.state === 'playing';
+    markEl.style.display = show ? '' : 'none'; if (!show) return;
+    const v = B.pos.clone().add(new THREE.Vector3(0, B.r + 0.6, 0)).project(camera), behind = v.z > 1;
+    let x = (v.x * 0.5 + 0.5) * innerWidth, y = (-v.y * 0.5 + 0.5) * innerHeight;
+    if (behind) { x = innerWidth - x; y = innerHeight - 30; }
+    const inView = !behind && x > 0 && x < innerWidth && y > 0 && y < innerHeight;
+    x = clamp(x, 24, innerWidth - 24); y = clamp(y, 24, innerHeight - 24);
+    markEl.style.left = x + 'px'; markEl.style.top = y + 'px';
+    markEl.style.opacity = inView ? 0.55 : 1;
+    markEl.textContent = inView ? '' : Math.round(B.pos.distanceTo(me.pos)) + '';
+  }
+  function update(dt) {
+    if (ballOn() && match.state === 'playing') {
+      makeBall();
+      if (isHost()) hostBall(dt); else clientBall(dt);
+      B.mesh.position.copy(B.pos);
+      const sp = Math.hypot(B.vel.x, B.vel.z);
+      if (sp > 0.05) { const ax = new THREE.Vector3(B.vel.z, 0, -B.vel.x).normalize(); B.mesh.rotateOnWorldAxis(ax, sp * dt / B.r); }
+      B.glow.material.opacity = B.kick > 0 ? 0.25 + 0.15 * Math.sin(time * 6) : 0.12 + Math.min(0.3, B.vel.length() / 90);
+      const g = groundAt(B.pos.x, B.pos.y, B.pos.z, 40);
+      B.ring.visible = !!g; if (g) { B.ring.position.set(g.x, g.y + 0.05, g.z); const hgt = B.pos.y - g.y; B.ring.scale.setScalar(clamp(1.2 - hgt * 0.05, 0.5, 1.2)); B.ring.material.opacity = clamp(0.6 - hgt * 0.03, 0.15, 0.6); }
+      if (sp > 18) spawnParticle(B.pos.clone(), new THREE.Vector3(), 0xffb040, 0.2, 0.2, 0, true);
+    } else if (B.mesh && !ballOn()) dropBall();
+    updateMeteors(dt);
+    hud(); ballMarker();
+  }
+  function hostTick(dt) {
+    if (match.state !== 'playing' || match.cd > 0) return;
+    hostMeteors(dt);
+  }
+  function reset() { B.score = [0, 0]; kickoff(match.mode === 'hball' ? 3 : 0); B.srv = null; metT = 6; }
+  function clear() {
+    dropBall();
+    for (const o of mets) scene.remove(o.mark, o.fill, o.rock); mets.length = 0;
+    if (markEl) markEl.style.display = 'none'; if (infoEl) infoEl.textContent = '';
+  }
+  const goals = t => B.score[t] | 0;
+  return { isHammer, smash, pct, kbMul, smashDmg, pctColor, hammerBall, onMsg, spawnPoint, botGoal, botAdjust, ignore, update, hostTick, reset, clear, goals, ball: B, onMeteor };
+})();
+
+</script>
 <script>/* src/spectate.js */
 'use strict';
 // =====================================================================
@@ -8498,6 +8910,8 @@ const MenuUI = (() => {
     jugg: { i: '♜', g: 'party', s: 'Everyone vs one giant: kill it to become it', t: ['PARTY'] },
     hide: { i: '▣', g: 'party', s: 'Hide as a prop, seekers hunt you', t: ['PARTY', 'ROUNDS'] },
     hammer: { i: '🔨', g: 'twists', s: 'Third-person titan hammers, ring-outs', t: ['FFA', '3RD PERSON'] },
+    smash: { i: '💥', g: 'twists', s: 'Damage % builds up, knock them off to score', t: ['FFA', '3RD PERSON', 'RING-OUTS'] },
+    hball: { i: '⚽', g: 'twists', s: 'Team soccer with titan hammers', t: ['TEAMS', '3RD PERSON', 'GOALS'] },
     horde: { i: '⛨', g: 'coop', s: 'Hold off endless waves together', t: ['CO-OP'] },
     breach: { i: '◆', g: 'comp', s: 'Plant or defuse, buy gear, one life', t: ['TEAMS', '3v3 / 5v5'] },
   };
@@ -8719,7 +9133,7 @@ const SaveXfer = (() => {
 //  Browsers may serve a cached older page for a while (GitHub Pages: 10 min), and mismatched versions can't
 //  play together, so the game polls version.json and offers a cache-busting reload when a newer build is out.
 // =====================================================================
-const BUILD_ID = '096fbdc436';
+const BUILD_ID = '6fb384572f';
 const UpdateCheck = (() => {
   let shown = false;
   async function check() {
@@ -9003,6 +9417,7 @@ function handleMsg(m) {
     case 'stk': { const r = projs.find(q => q.rid === m.rid); if (r) stickProj(r, m.to); else if (m.to === me.id) { showAnnounce('STUCK!', 'RUN!'); SFX.announce('stuck'); } break; }
     case 'x': { const p = players.get(m.id); if (p && owns(p)) return; explode(m); break; }
     case 'turh': Arms.onMsg(m); break;
+    case 'bb': case 'bh': case 'bg': case 'met': Brawl.onMsg(m); break;   // HAMMER BALL + METEORS
     case 'thr': { const p = players.get(m.id); if (p && !owns(p)) Arms.spawnThrow(m, false); break; }
     case 'hit': { const v = players.get(m.v); if (v && owns(v)) applyDamage(v, m.dmg, m); break; }
     case 'fb': if (m.a === me.id) hitFeedback(m.dmg, false, m.c, V3().fromArray(m.p), m.v); break;
@@ -9044,7 +9459,7 @@ function clearWorldState() {
 function clearTransient() {
   for (const r of projs) scene.remove(r.mesh); projs.length = 0;
   for (const o of orbs.values()) scene.remove(o.g); orbs.clear();
-  clearPool(TRAILS); clearPool(TRACERS); Extras.clear(); Arms.clear();
+  clearPool(TRAILS); clearPool(TRACERS); Extras.clear(); Arms.clear(); Brawl.clear();
   hill.idx = -1; hill.owner = ''; hill.group.visible = false; hill.acc = 0;
 }
 // busier lobbies get roomier maps: 5 players = normal size, 9 players = 20% wider (heights never change)
@@ -9164,6 +9579,7 @@ function startSession(n, myId, welcome, opts) {
   if (match.mode === 'elim' && !welcome) Elim.reset();
   if (match.mode === 'breach' && !welcome) Breach.reset();
   if (Party.on() && !welcome) Party.reset();
+  Brawl.reset();
   if (match.mode === 'trials') { Trials.setup(match.map); Trials.restart(); } else Trials.stop();
   mode = 'game';
   $('menu').classList.add('hidden'); $('hud').classList.remove('hidden'); $('endscreen').classList.add('hidden');
@@ -9239,6 +9655,7 @@ function resetMatch(m) {
   if (match.mode === 'elim') Elim.reset();
   if (match.mode === 'breach') Breach.reset();
   if (Party.on()) Party.reset();
+  Brawl.reset();
   if (match.mode === 'horde') { if (net.isHost) Horde.reset(); }
   else if (net.isHost) for (const p of players.values()) if (p.bot) { respawn(p); if (p.ai) p.ai.wander = null; }
   $('room').innerHTML = roomLabel(M);
@@ -9286,7 +9703,7 @@ const BOT_DIFF = {
 const botDiff = () => match.mode === 'horde' ? Prog.adaptiveDiff(760 + Horde.wave * 45) : Settings.botDiff === 'adaptive' ? Prog.adaptiveDiff() : BOT_DIFF[Settings.botDiff] || BOT_DIFF.normal;
 const NET_DT = 1 / 30;   // state send rate on direct P2P links (30 Hz); the MQTT relay stays at 20 Hz (netDt)
 const netDt = () => (net && net.relay ? 1 / 20 : NET_DT);   // match length / respawn delay come from the match rules (R)
-const NET_PREFIX = 'slidefire-arena-v15-';
+const NET_PREFIX = 'slidefire-arena-v16-';
 
 // ---------------- weapons ----------------
 const WEAPONS = [
@@ -9405,11 +9822,13 @@ const MODES = {
   jugg: { name: 'JUGGERNAUT', voice: 'juggernaut', desc: 'Party: everyone vs one giant LMG Juggernaut. Kill it to become it. First to {n} points.', limit: 15, teams: true, party: true, power: false },
   hide: { name: 'HIDE & SEEK', voice: 'hide and seek', desc: 'Party: hiders turn into props and hide while the seekers are blind. Found hiders become seekers. Misses cost seekers HP. {n} rounds.', limit: 4, teams: true, party: true, noClock: true, power: false, noNades: true },
   hammer: { name: 'HAMMERFALL', desc: 'Third-person hammer brawl: everyone swings a TITAN HAMMER. Dead-centre hits kill, edges bruise. RMB leaps sky-high and crashes down where you aim, double jump in the air. Knock enemies off the floating arena. First to {n}.', limit: 15, loadout: [W_TITAN], infinite: true, noNades: true, power: false, tp: true, djump: true, air: 1.5 },
+  smash: { name: 'SMASHFALL', desc: 'Hammer brawl where damage never kills: every hit raises your DAMAGE %, and the higher it gets, the further hits launch you. The only way to die is being knocked off THE CRUCIBLE. First to {n} ring-outs.', limit: 10, loadout: [W_TITAN], infinite: true, noNades: true, power: false, tp: true, djump: true, air: 1.5, hpFix: 999, noRegen: true },
+  hball: { name: 'HAMMER BALL', desc: 'Red vs Blue soccer with titan hammers. Swing to shoot (look up to loft it), uppercut to pop it up, leap-slam to blast it, throw the hammer at it. Knock defenders off THE PITCH. First to {n} goals.', limit: 5, teams: true, loadout: [W_TITAN], infinite: true, noNades: true, power: false, tp: true, djump: true, air: 1.5 },
   instagib: { name: 'INSTAGIB', voice: 'instagib', desc: 'Everyone gets an infinite railgun. One hit kills. First to {n}.', limit: 20, loadout: [W_RAIL], igPick: true, infinite: true, noNades: true, power: false },
 };
 // ---------------- match rules: chosen by the host in the lobby, sent to everyone with each match ----------------
-const LIMIT_RANGE = { ffa: [5, 50, 5], tdm: [10, 100, 5], gun: [1, 3, 1], koth: [20, 200, 10], roulette: [5, 50, 5], snipers: [5, 50, 5], rockets: [5, 50, 5], instagib: [5, 50, 5], hammer: [5, 50, 5], trials: [1, 1, 1], horde: [1, 10, 1], elim: [2, 10, 1], scouts: [5, 50, 5], breach: [3, 13, 1], infect: [1, 10, 1], jugg: [5, 50, 5], hide: [1, 10, 1] };
-const LIMIT_LABEL = { ffa: 'Kills to win', tdm: 'Team kills to win', gun: 'Kills per weapon', koth: 'Hill points to win', roulette: 'Kills to win', snipers: 'Kills to win', rockets: 'Kills to win', hammer: 'Kills to win', instagib: 'Kills to win', trials: '', horde: 'Team lives', elim: 'Rounds to win', scouts: 'Kills to win', breach: 'Rounds to win', infect: 'Rounds', jugg: 'Points to win', hide: 'Rounds' };
+const LIMIT_RANGE = { ffa: [5, 50, 5], tdm: [10, 100, 5], gun: [1, 3, 1], koth: [20, 200, 10], roulette: [5, 50, 5], snipers: [5, 50, 5], rockets: [5, 50, 5], instagib: [5, 50, 5], hammer: [5, 50, 5], smash: [3, 30, 1], hball: [1, 15, 1], trials: [1, 1, 1], horde: [1, 10, 1], elim: [2, 10, 1], scouts: [5, 50, 5], breach: [3, 13, 1], infect: [1, 10, 1], jugg: [5, 50, 5], hide: [1, 10, 1] };
+const LIMIT_LABEL = { ffa: 'Kills to win', tdm: 'Team kills to win', gun: 'Kills per weapon', koth: 'Hill points to win', roulette: 'Kills to win', snipers: 'Kills to win', rockets: 'Kills to win', hammer: 'Kills to win', smash: 'Ring-outs to win', hball: 'Goals to win', instagib: 'Kills to win', trials: '', horde: 'Team lives', elim: 'Rounds to win', scouts: 'Kills to win', breach: 'Rounds to win', infect: 'Rounds', jugg: 'Points to win', hide: 'Rounds' };
 const RULE_DEFAULTS = { limits: {}, time: 6, hp: 100, respawn: 2.5, grav: 'mode', ammo: false, nades: true, power: true, regen: true, mut: [], igw: 'railgun', igOne: true };
 // INSTAGIB: the host picks which power weapon everyone gets (key from POWER_POOL; 'random' = a new one every match)
 const IG_POOL = POWER_POOL.filter(w => w !== W_STASIS);   // stasis does no damage: not a mode on its own
@@ -9427,7 +9846,7 @@ function buildRules(mode, S = ruleSettings()) {
   return {
     limit: clamp(Math.round(want) || Md.limit, rg[0], rg[1]),
     time: clamp(Math.round(+S.time) || 0, 0, 30),                       // minutes, 0 = no time limit
-    hp: clamp(Math.round(+S.hp) || 100, 25, 300),
+    hp: Md.hpFix || clamp(Math.round(+S.hp) || 100, 25, 300),
     respawn: clamp(+S.respawn || 2.5, 0.5, 10),
     grav: S.grav in GRAV_OPTS ? GRAV_OPTS[S.grav] : (Md.grav || 1), gravKey: S.grav in GRAV_OPTS ? S.grav : 'mode',
     infinite: !!(Md.infinite || S.ammo), noNades: !!(Md.noNades || S.nades === false || knives),
@@ -9441,7 +9860,7 @@ function sanitizeRules(r, mode) {
   const Md = MODES[mode] || MODES.ffa, rg = LIMIT_RANGE[mode] || LIMIT_RANGE.ffa;
   return {
     limit: clamp(Math.round(+r.limit) || Md.limit, rg[0], rg[1]), time: clamp(Math.round(+r.time) || 0, 0, 30),
-    hp: clamp(Math.round(+r.hp) || 100, 25, 300), respawn: clamp(+r.respawn || 2.5, 0.5, 10),
+    hp: Md.hpFix || clamp(Math.round(+r.hp) || 100, 25, 300), respawn: clamp(+r.respawn || 2.5, 0.5, 10),
     grav: clamp(+r.grav || 1, 0.3, 2), gravKey: String(r.gravKey || 'mode').slice(0, 8),
     infinite: !!r.infinite, noNades: !!r.noNades, power: !!r.power, regen: r.regen !== false,
     air: clamp(+r.air || 1, 1, 4), nospread: !!r.nospread, mut: Mut.clean(r.mut),
@@ -9450,10 +9869,10 @@ function sanitizeRules(r, mode) {
 }
 let R = buildRules('ffa');
 // ---------------- PLAYLIST: a random mode + fitting map every match (no menus between games) ----------------
-const PLAYLIST_MODES = ['ffa', 'tdm', 'gun', 'koth', 'snipers', 'rockets', 'roulette', 'elim', 'scouts', 'instagib', 'breach', 'infect', 'jugg', 'hide', 'hammer'];
+const PLAYLIST_MODES = ['ffa', 'tdm', 'gun', 'koth', 'snipers', 'rockets', 'roulette', 'elim', 'scouts', 'instagib', 'breach', 'infect', 'jugg', 'hide', 'hammer', 'smash', 'hball'];
 const playlistOn = () => Settings.mode === 'playlist';
 // modes that always play on their own map
-const forcedMap = m => m === 'breach' ? World.BREACH_START : m === 'hammer' ? World.HAMMER_MAP : null;
+const forcedMap = m => m === 'breach' ? World.BREACH_START : m === 'hammer' || m === 'smash' ? World.HAMMER_MAP : m === 'hball' ? World.PITCH_MAP : null;
 function pickPlaylist(prevMode, prevMap) {
   const modes = PLAYLIST_MODES.filter(m => m !== prevMode);
   const mode = modes[Math.floor(Math.random() * modes.length)];
@@ -10043,7 +10462,7 @@ function updateHpBar(p, av, dt) {
   const d = camera.position.distanceTo(p.pos);
   const k = clamp(d / 9, 1, 2.2);
   av.tag.scale.set(1.5 * k, 0.42 * k, 1);                                    // name tags stay readable at range too
-  const f = clamp(hp / hpCapOf(p), 0, 1);
+  const f = match.mode === 'smash' ? clamp(1 - Brawl.pct(p) / 250, 0, 1) : clamp(hp / hpCapOf(p), 0, 1);
   if (f < p.hbChip) { if ((p.hbChipT += dt) > 0.45) p.hbChip = Math.max(f, p.hbChip - dt * 1.2); } else { p.hbChip = f; p.hbChipT = 0; }
   if (f < (p.hbLast ?? 1) - 0.001) p.hbChipT = 0;
   p.hbLast = f; p._hbF = f; p._hbD = d; p._hbK = k;
@@ -10083,7 +10502,7 @@ function drawHpBars() {
     if (allies(p, me) && teamGame()) { g.fillStyle = hex(p.color); g.fillRect(x - 2, y + bh + 2, bw + 4, 2); }   // teammates: team-colour underline
     if (p._hbD < 35) {   // exact HP next to the bar up close
       g.font = '700 ' + Math.round(clamp(bh + 2, 10, 14)) + 'px Rajdhani, Segoe UI, sans-serif'; g.textBaseline = 'middle'; g.textAlign = 'left';
-      const tx = x + bw + 6, ty = y + bh / 2 + 1, txt = String(Math.max(0, Math.round(shownHp(p))));
+      const tx = x + bw + 6, ty = y + bh / 2 + 1, txt = match.mode === 'smash' ? Brawl.pct(p) + '%' : String(Math.max(0, Math.round(shownHp(p))));
       g.lineWidth = 3; g.strokeStyle = 'rgba(0,0,0,0.85)'; g.strokeText(txt, tx, ty); g.fillStyle = fc; g.fillText(txt, tx, ty);
     }
   }
@@ -10286,7 +10705,7 @@ function simulate(p, inp, dt) {
       }
     }
   } else {
-    if (R.djump && inp.jumpPress && !p.djUsed && !p.wallRunning && time - (p.wallT || -9) > 0.15) {   // HAMMERFALL: one double jump per air time
+    if ((R.djump || Mut.djump()) && inp.jumpPress && !p.djUsed && !p.wallRunning && time - (p.wallT || -9) > 0.15) {   // HAMMERFALL: one double jump per air time
       p.djUsed = true; p.vel.y = Math.max(p.vel.y, JUMP_V * 0.95); jumped = true; onJump(p, false);
       if (p === me) SFX.play('hop', 0.7);
     }
@@ -10364,6 +10783,10 @@ function simulate(p, inp, dt) {
     else p.pos.y = c.min.y - p.height - 0.001;
     if (hitBox(p.pos.x, p.pos.y, p.pos.z, p.height)) p.pos.y = oy;
     p.vel.y = 0;
+    if (p.onGround && vy < -7 && Mut.bounce() && !inp.slide && !p.crouch && !p.slam && !p.leap) {   // BOUNCE HOUSE: floors are trampolines
+      p.vel.y = Math.min(24, -vy * 0.8); p.onGround = false;
+      if (p === me) SFX.play('pad', 0.5);
+    }
   }
   if (!wasGround && p.onGround) {
     p.lastLandT = time; p.groundT = 0; p.wallRunning = false;
@@ -10743,6 +11166,7 @@ function applyDamage(v, dmg, info) {
   if (!v.alive || v.spawnProt > 0 || match.state !== 'playing' || match.cd > 0) return;
   if (info.h && info.w === W_VULTURE && v.hp >= R.hp && dmg >= R.hp) info.ot = true;
   if (v.armor > 0 && match.mode === 'breach') { const ab = Math.min(v.armor, Math.round(dmg * (info.h ? 0.2 : 0.5))); v.armor -= ab; dmg -= ab; }
+  if (match.mode === 'smash') dmg = Brawl.smashDmg(v, dmg, info);   // SMASHFALL: damage % instead of death, knockback grows
   v.hp -= dmg; v.lastDmgT = time;
   if (info.kb && Number.isFinite(info.kb)) Arms.shove(v, info);
   if (info.sup) v.slowUntil = time + 0.6;
@@ -10754,7 +11178,7 @@ function applyDamage(v, dmg, info) {
 }
 function killPlayer(v, info) {
   v.hp = 0; v.deathPos = v.pos.clone();
-  const m = { t: 'k', k: info.a, v: v.id, w: info.w, nt: info.nt, h: !!info.h, c: !!info.c, air: !!info.air, wr: !!info.wr, ns: !!info.ns, qs: !!info.qs, st: !!info.st, ot: !!info.ot, bnc: !!info.bnc, sc: !!info.sc, bs: !!info.bs, as: !!info.as, wb: !!info.wb, spd: info.spd || 0, dist: info.dist || 0, o: 'o' + (orbSeq++) + '_' + v.id, p: arr(v.pos) };
+  const m = { t: 'k', k: info.a, v: v.id, w: info.w, nt: info.nt, h: !!info.h, c: !!info.c, air: !!info.air, wr: !!info.wr, ns: !!info.ns, qs: !!info.qs, st: !!info.st, ot: !!info.ot, bnc: !!info.bnc, met: !!info.met, lava: !!info.lava, sc: !!info.sc, bs: !!info.bs, as: !!info.as, wb: !!info.wb, spd: info.spd || 0, dist: info.dist || 0, o: 'o' + (orbSeq++) + '_' + v.id, p: arr(v.pos) };
   handleKill(m); send(m);
 }
 // spawn safety: far from enemies, never in an enemy's sightline, not on top of where you just died; a little ally pull in team modes
@@ -10775,7 +11199,7 @@ function spawnScore(p, s) {
   return md + sc + Math.random() * 5;
 }
 function respawn(p) {
-  const brSp = match.mode === 'breach' && World.breach ? Breach.spawnPoint(p) : null;
+  const brSp = match.mode === 'breach' && World.breach ? Breach.spawnPoint(p) : Brawl.spawnPoint(p);
   const scored = brSp ? [{ s: brSp }, { s: brSp }] : World.spawns.map(s => ({ s, md: spawnScore(p, s) })).sort((a, b) => b.md - a.md);
   const sp = scored[Math.floor(Math.random() * 2)].s;
   p.pos.copy(sp); p.vel.set(0, 0, 0); p.lastPos.copy(sp);
@@ -10968,7 +11392,7 @@ function applyBlast(m, c, P) {
     const dir = body.clone().sub(c); if (dir.lengthSq() < 1e-4) dir.set(0, 1, 0);
     dir.normalize(); dir.y += 0.45; dir.normalize();
     if (P.lift) { dir.y += P.lift; dir.normalize(); }   // GRAVITY MAUL slam launches people up
-    p.vel.addScaledVector(dir, (self ? P.knockSelf : P.knock) * (0.35 + 0.65 * f));
+    p.vel.addScaledVector(dir, (self ? P.knockSelf : P.knock * Brawl.kbMul(p)) * (0.35 + 0.65 * f));
     if (p.vel.y > 0) p.onGround = false;
     if (P.conc && p === me) { concFlash = 1; shakeAmt += 0.6; }
     let dmg = P.dmg * (0.25 + 0.75 * f) * (m.c ? 1.25 : 1);
@@ -11081,13 +11505,13 @@ function updateHillVisual() {
 // =====================================================================
 //  SCORING / KILLS / MEDALS / PROGRESSION
 // =====================================================================
-function scoreOf(p) { return match.mode === 'gun' ? p.gg : match.mode === 'koth' ? p.hill : match.mode === 'elim' || Party.on() ? (p.rw | 0) : p.k; }
-function teamScore(t) { if (match.mode === 'breach') return Breach.score(t); let s = 0; for (const p of players.values()) if (p.team === t) s += p.k; return s; }
+function scoreOf(p) { return match.mode === 'gun' ? p.gg : match.mode === 'koth' ? p.hill : match.mode === 'elim' || match.mode === 'hball' || Party.on() ? (p.rw | 0) : p.k; }
+function teamScore(t) { if (match.mode === 'breach') return Breach.score(t); if (match.mode === 'hball') return Brawl.goals(t); let s = 0; for (const p of players.values()) if (p.team === t) s += p.k; return s; }
 function sortedPlayers() { return [...players.values()].sort((a, b) => scoreOf(b) - scoreOf(a) || b.k - a.k || a.d - b.d); }
 function checkWin() {
   if (!net || !net.isHost || match.state !== 'playing') return;
   const L = scoreLimit();
-  if (match.mode === 'horde' || match.mode === 'elim' || match.mode === 'breach' || MODES[match.mode].solo || Party.on()) return;   // these end themselves
+  if (match.mode === 'horde' || match.mode === 'elim' || match.mode === 'breach' || match.mode === 'hball' || MODES[match.mode].solo || Party.on()) return;   // these end themselves
   if (match.mode === 'tdm') { if (teamScore(0) >= L || teamScore(1) >= L) endMatch(); return; }
   for (const p of players.values()) if (scoreOf(p) >= L) { endMatch(); return; }
 }
@@ -11124,7 +11548,7 @@ function handleKill(m) {
   for (const r of projs) if (r.stuckTo === v.id) r.stuckTo = null;
   const pos = V3().fromArray(m.p);
   shatterFx(pos, v.color);
-  if (match.mode !== 'breach') spawnOrb(m.o, pos);
+  if (match.mode !== 'breach' && match.mode !== 'smash') spawnOrb(m.o, pos);
   const suicide = !k || k === v;
   const firstBlood = !suicide && !match.fb;
   if (firstBlood) { match.fb = true; feedText(k.name + ' drew FIRST BLOOD', k.color); }
@@ -11142,7 +11566,7 @@ function handleKill(m) {
   if (v === me) onDeath(k, suicide);
   if (k === me && !suicide) onMyKill(m, v, prevStreak, firstBlood);
   if (v.bot && v.ai) v.ai.target = null;
-  Horde.onKill(v); Breach.onKill(v, k, m); Party.onKill(v, k); Meta.onAnyKill(m, k, v);
+  Horde.onKill(v); Breach.onKill(v, k, m); Party.onKill(v, k); Meta.onAnyKill(m, k, v); Mut.onDeath(v, k);
   refreshChips(); checkLead();
   checkWin();
 }
@@ -12161,8 +12585,8 @@ function updateTargetInfo(dt) {
   const q = tgtId && players.get(tgtId);
   const on = !!(q && q.alive && !q._prop && me.alive && time - tgtSeenT < 0.35);
   el.classList.toggle('on', on); if (!on) return;
-  const hp = Math.max(0, Math.round(shownHp(q))), f = clamp(hp / hpCapOf(q), 0, 1);
-  setText(el, `<span style="color:${hex(q.color)}">${escapeHtml(q.name)}</span> · ${hp} HP<div class="hpb"><i style="width:${(f * 100).toFixed(0)}%;background:${hex(hpColor(f))}"></i></div>`);
+  const hp = Math.max(0, Math.round(shownHp(q))), sm = match.mode === 'smash', f = sm ? clamp(1 - Brawl.pct(q) / 250, 0, 1) : clamp(hp / hpCapOf(q), 0, 1);
+  setText(el, `<span style="color:${hex(q.color)}">${escapeHtml(q.name)}</span> · ${sm ? Brawl.pct(q) + '%' : hp + ' HP'}<div class="hpb"><i style="width:${(f * 100).toFixed(0)}%;background:${hex(hpColor(f))}"></i></div>`);
 }
 const dmgNums = [];
 function dmgNumber(pos, dmg, cls, key) {
@@ -12239,7 +12663,7 @@ function addKillfeed(k, v, m, suicide) {
   const wn = m.w === W_NADE ? (NADES[m.nt] || NADES.frag).name : (WNAMES[m.w] || '');
   const tags = (m.h ? ' ◎' : '') + (m.c ? ' ⟿' : '') + (m.wr ? ' ⫽' : m.air ? ' ↑' : '') + (m.ns ? ' NS' : '');
   el.innerHTML = suicide
-    ? `<span style="color:${hex(v.color)}">${escapeHtml(v.name)}</span><span class="w">${m.w === W_VOID ? 'FELL INTO THE VOID' : 'SELF-DESTRUCT'}</span>`
+    ? `<span style="color:${hex(v.color)}">${escapeHtml(v.name)}</span><span class="w">${m.met ? 'CRUSHED BY A METEOR' : m.lava ? 'MELTED IN THE LAVA' : m.w === W_VOID ? 'FELL INTO THE VOID' : 'SELF-DESTRUCT'}</span>`
     : `<span style="color:${hex(k.color)}">${escapeHtml(k.name)}</span><span class="w">[${wn}${tags}]</span><span style="color:${hex(v.color)}">${escapeHtml(v.name)}</span>`;
   pushFeed(el);
 }
@@ -12303,9 +12727,16 @@ let sbT = 0;
 function updateHUD(dt) {
   const w = WEAPONS[me.weapon];
   const hp = Math.ceil(me.hp);
+  if (match.mode === 'smash') {   // SMASHFALL: your damage % (the bar empties as you get easier to launch)
+    const pc = Brawl.pct(me);
+    setText(hud.hpnum, `<span style="color:${Brawl.pctColor(pc)}">${pc}</span><small>%</small>`);
+    setStyle(hud.hpbar, 'width', Math.max(0, 100 - pc / 2.5).toFixed(1) + '%');
+    hud.hpwrap.classList.toggle('low', pc > 120);
+  } else {
   setText(hud.hpnum, hp + '<small>HP</small>');
   setStyle(hud.hpbar, 'width', Math.min(100, hp / R.hp * 100).toFixed(1) + '%');
   hud.hpwrap.classList.toggle('low', hp < 35);
+  }
   setText(hud.wname, w.name + (me.overdrive > 0 ? ' <span style="color:#ff8a00">⚡</span>' : ''));
   setText(hud.ammo, w.titan ? Arms.titanHud(me) : w.melee ? '∞' : me.ammo[me.weapon] + '<small> / ' + w.mag + '</small>');
   setStyle(hud.reload, 'width', me.reloadT > 0 ? ((1 - me.reloadT / (me.reloadMax || 1)) * 100).toFixed(0) + '%' : '0%');
@@ -12619,10 +13050,12 @@ function stepPlayer(p, inp, dt) {
   return jumped;
 }
 function updateOwned(p, dt) {
+  if (p === me) Mut.tickBooms();   // VOLATILE blasts from our own bodies (also while we're dead)
   if (p.alive) {
     // frozen countdown: protection stays full, so nobody can pre-aim a one-tap the instant FIGHT drops
     p.spawnProt = match.cd > 0 ? Math.max(p.spawnProt, SPAWN_PROT_START) : Math.max(0, p.spawnProt - dt);
     p.overdrive = Math.max(0, p.overdrive - dt);
+    Mut.ownTick(p, dt);   // FLOOR IS LAVA, VOLATILE blasts
     const mx = p.maxHp || R.hp;
     if (R.regen && Mut.regen() && !p.noRegen && time - p.lastDmgT > 4 && p.hp < mx) p.hp = Math.min(mx, p.hp + 22 * dt * R.hp / 100);
     if (p.pos.y < World.killY && match.mode === 'trials') Trials.fell();
@@ -12803,7 +13236,7 @@ function updateGame(dt) {
       if (!p.bot) continue;
       updateOwned(p, dt);
       if (!p.alive) continue;
-      T = pnow(); const inp = botInput(p, dt); pmark('botAI', T);
+      T = pnow(); const inp = botInput(p, dt); Brawl.botAdjust(p, inp, dt); pmark('botAI', T);
       T = pnow(); stepPlayer(p, inp, dt); pmark('botMove', T);
       p.eye = p.crouch ? EYE_CROUCH : EYE_STAND;
       T = pnow(); weaponTick(p, dt, inp.fire); Arms.tick(p, dt, false); pmark('botShoot', T);
@@ -12811,7 +13244,7 @@ function updateGame(dt) {
     if (match.state === 'playing' && match.mode === 'koth') hostHillTick(dt);
     if (match.state === 'playing' && match.mode === 'horde') Horde.hostTick(dt);
     if (match.state === 'playing' && match.mode === 'elim') Elim.hostTick(dt);
-    Mut.hostTick(dt); Party.hostTick(dt);
+    Mut.hostTick(dt); Party.hostTick(dt); Brawl.hostTick(dt);
     if (match.state === 'playing' && match.mode === 'breach') Breach.hostTick(dt);
     if (match.state === 'playing') Extras.hostTick(dt);
     if (match.state === 'playing' && time >= match.endAt) endMatch();
@@ -12821,7 +13254,7 @@ function updateGame(dt) {
   T = pnow(); updateProjs(dt); updateStuckBolts(dt); updateBurns(dt); pmark('projs', T);
   updateOrbs(dt);
   updateHillVisual();
-  T = pnow(); Extras.update(dt); Arms.update(dt); Breach.update(dt); Party.update(dt); pmark('extras', T);
+  T = pnow(); Extras.update(dt); Arms.update(dt); Breach.update(dt); Party.update(dt); Brawl.update(dt); pmark('extras', T);
   T = pnow(); updateViewmodel(dt); pmark('viewmodel', T);
   updateCountdown(dt);
   const spd = Math.hypot(me.vel.x, me.vel.y * 0.6, me.vel.z);
@@ -13063,10 +13496,10 @@ function renderRulesUI() {
   const custom = rulesNotes(mode, r).filter(n => !/MIN|LIMIT/.test(n)).length > 0;
   $('rulesSum').textContent = (mode === 'gun' ? r.limit + ' per weapon' : r.limit + ' to win') + ' · ' + (r.time ? r.time + ' min' : 'no time limit') + (custom ? ' · custom' : '');
   renderModeOptions();
-  const br = mode === 'breach' || mode === 'hammer', pl = Settings.mode === 'playlist';
+  const br = mode === 'breach' || Brawl.isHammer(mode), pl = Settings.mode === 'playlist';
   $('teamSizeRow').style.display = br || pl ? '' : 'none';
   $('teamSizeSel').value = String(Settings.teamSize === 3 ? 3 : 5);
-  $('mapSel').disabled = br || pl; $('mapSel').title = br ? (mode === 'hammer' ? 'HAMMERFALL always plays in THE CRUCIBLE' : 'BREACH always plays on MERIDIAN') : pl ? 'The playlist picks a random map every match' : '';
+  $('mapSel').disabled = br || pl; $('mapSel').title = br ? (mode === 'hball' ? 'HAMMER BALL always plays on THE PITCH' : Brawl.isHammer(mode) ? MODES[mode].name + ' always plays in THE CRUCIBLE' : 'BREACH always plays on MERIDIAN') : pl ? 'The playlist picks a random map every match' : '';
   if (pl) $('rulesSum').textContent = 'Playlist: each mode uses its own default target · ' + (r.time ? r.time + ' min' : 'no time limit');
   MenuUI.refresh();
 }
