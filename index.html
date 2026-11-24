@@ -3079,7 +3079,7 @@ const Relay = (() => {
     'wss://test.mosquitto.org:8081/mqtt',
     'wss://broker.emqx.io:8084/mqtt',      // slower, last resort
   ];
-  const NS = 'slidefire-arena-v16-relay-7q2k/';
+  const NS = 'slidefire-arena-v17-relay-7q2k/';
   const FLUSH_MS = 45, KEEPALIVE_MS = 2000, TIMEOUT_MS = 10000;
   const te = new TextEncoder(), td = new TextDecoder();
 
@@ -4389,7 +4389,11 @@ const Arms = (() => {
     if (p.slam && !(p.leap && !p.leap.down) && (p.onGround || time - p.slamT > 3)) {   // GRAVITY MAUL: the slam lands
       p.slam = false; p.leap = null; p.leapV = null; p.slamDone = p.slamKind; p.slamKind = null;
       if (p.onGround) {
-        if (WEAPONS[p.weapon] && WEAPONS[p.weapon].titan) { titanBoom(p, p.slamDone === 'leap' ? 'tdash' : 'tslam', p.pos.clone().add(_b.set(0, p.slamDone === 'leap' ? 0.9 : 0.6, 0))); p.vel.x *= 0.1; p.vel.z *= 0.1; if (p.slamDone === 'leap') { p.vel.y = 0; p.shockT = time + 0.3; p.shockAt = p.pos.clone(); } }   /* the impact stops you dead */
+        if (WEAPONS[p.weapon] && WEAPONS[p.weapon].titan) {   /* the higher you came down from, the harder it hits */
+          const drop = Math.max(0, (p.peakY ?? p.pos.y) - p.pos.y), sc = dropScale(drop); p.peakY = null;
+          titanBoom(p, p.slamDone === 'leap' ? 'tdash' : 'tslam', p.pos.clone().add(_b.set(0, p.slamDone === 'leap' ? 0.9 : 0.6, 0)), sc);
+          if (p === me) dropCallout(drop, sc);
+          p.vel.x *= 0.1; p.vel.z *= 0.1; if (p.slamDone === 'leap') { p.vel.y = 0; p.shockT = time + 0.3; p.shockAt = p.pos.clone(); p.shockS = sc; } }   /* the impact stops you dead */
         else { const m = { t: 'x', k: 'slam', w: W_MAUL, id: p.id, rid: p.id + '_s' + (seq++), p: arr(p.pos.clone().add(_b.set(0, 0.4, 0))) }; explode(m); send(m); }
         if (p === me) shakeAmt += 0.9;
       }
@@ -4398,7 +4402,8 @@ const Arms = (() => {
   // per-frame weapon extras for owned players (alt = the right mouse button is down)
   function tick(p, dt, alt) {
     const w = WEAPONS[p.weapon];
-    if (p.shockT && time >= p.shockT) { p.shockT = 0; if (p.alive) titanBoom(p, 'tshock', p.shockAt.add(_b.set(0, 0.5, 0))); }   /* leap AFTERSHOCK */
+    if (p.slam) p.peakY = Math.max(p.peakY ?? p.pos.y, p.pos.y);   /* slam damage scales with the drop */
+    if (p.shockT && time >= p.shockT) { p.shockT = 0; if (p.alive) titanBoom(p, 'tshock', p.shockAt.add(_b.set(0, 0.5, 0)), p.shockS || 1); }   /* leap AFTERSHOCK */
     if (p.slam && p.slamKind === 'leap' && !p.leap && p.vel.y < 0) p.vel.y -= 26 * dt;   // LEAP: drop like a rock after the apex
     if (w && w.titan) {
       if (p.bot) alt = botWantsDash(p);
@@ -4632,7 +4637,7 @@ const Arms = (() => {
     if (p.hThrown) return true;                                                   // nothing in your hands
     const air = !p.onGround;
     if (air && p.pitch < -0.45 && heightAboveGround(p) > 1.4) {                     // THOR DIVE
-      p.slam = true; p.slamT = time; p.slamKind = 'dive'; p.vel.set(p.vel.x * 0.3, -38, p.vel.z * 0.3);
+      p.slam = true; p.slamT = time; p.slamKind = 'dive'; p.peakY = p.pos.y; p.vel.set(p.vel.x * 0.3, -38, p.vel.z * 0.3);
       setAnim(p, 'dive'); startFx(p, 'dive'); shout(p, 'dive');
       return true;
     }
@@ -4735,7 +4740,7 @@ const Arms = (() => {
     const E = leapTarget(p), S = p.pos.clone();
     p.leap = { t: 0, S, E, E0: E.clone(), A: Math.max(S.y, E.y) + LEAP.H, down: false };
     p.vel.set(0, Math.min(p.vel.y, 0), 0); p.sliding = false;
-    p.slam = true; p.slamT = time + LT4; p.slamKind = 'leap';
+    p.slam = true; p.slamT = time + LT4; p.slamKind = 'leap'; p.peakY = p.pos.y;
     setAnim(p, 'leap'); startFx(p, 'leap'); leapMark(E, p.id);
     send({ t: 'f', id: p.id, w: p.weapon, e: [], an: 'leap', lt: arr(E) });
   }
@@ -4769,9 +4774,22 @@ const Arms = (() => {
     }
   }
   // slam / leap landing: a blast through the normal explosion path; onBoom (every client) does the show
-  function titanBoom(p, k, at) {
-    Brawl.hammerBall(p, at, PROJ[k].splash * (k === 'tshock' ? 1 : 0.8), k === 'tdash' ? 'leap' : k === 'tshock' ? 'shock' : 'dive');
-    const m = { t: 'x', k, w: W_TITAN, id: p.id, rid: p.id + '_t' + (seq++), p: arr(at) };
+  // DROP SCALE: a full 10 m leap = x1.0 (a direct landing kills); a short hop or an early crash hits softer; diving off something high hits harder
+  const dropScale = drop => Math.round(clamp(drop / 10, 0.3, 1.6) * 100) / 100;
+  function dropScaled(P, m) {
+    if (!(m.k === 'tdash' || m.k === 'tslam' || m.k === 'tshock') || !Number.isFinite(+m.s)) return P;
+    const s = clamp(+m.s, 0.3, 1.6);
+    return Object.assign({}, P, { dmg: P.dmg * s, knock: P.knock * clamp(0.6 + 0.4 * s, 0.6, 1.3), splash: P.splash * clamp(0.8 + 0.2 * s, 0.8, 1.12) });
+  }
+  function dropCallout(drop, s) {
+    if (drop < 2) return;
+    const col = s >= 1.3 ? '#ff5030' : s >= 0.9 ? '#ffd23a' : '#bfe8ff';
+    if (typeof xpPopup === 'function') xpPopup(Math.round(drop) + ' m DROP · x' + s.toFixed(1), null, col);
+    if (s >= 1.3) { showAnnounce('METEOR STRIKE', Math.round(drop) + ' m drop'); shakeAmt += 0.5; }
+  }
+  function titanBoom(p, k, at, s = 1) {
+    Brawl.hammerBall(p, at, PROJ[k].splash * (k === 'tshock' ? 1 : 0.8) * clamp(0.8 + 0.2 * s, 0.8, 1.12), k === 'tdash' ? 'leap' : k === 'tshock' ? 'shock' : 'dive');
+    const m = { t: 'x', k, w: W_TITAN, id: p.id, rid: p.id + '_t' + (seq++), p: arr(at), s };
     explode(m); send(m);
   }
   function onBoom(m) {
@@ -4785,7 +4803,7 @@ const Arms = (() => {
       return;
     }
     if (p) { setAnim(p, 'land'); if (m.k === 'tdash') dropMark(p.id); }
-    const P = PROJ[m.k] || PROJ.tslam;
+    const P = dropScaled(PROJ[m.k] || PROJ.tslam, m);
     titanFx(c, false, P.splash, m.k === 'tdash' ? 'leapland' : 'diveland', true);
   }
   // ---------- HAMMER THROW: end over end out to ~17 m (or the first wall), then it flies back to your hand ----------
@@ -5045,7 +5063,7 @@ const Arms = (() => {
   }
   // bots: where the scythe makes sense, and which power weapons want close range
   const botMayFire = (b, w, dist) => !(w.dash && dist > w.dash - 1) && !(w.strike && dist < 7) && !(w.proj === 'turret' && dist > 30);
-  return { camPull, LEAP, PROJ, FX, projMesh, fire, dmgMul, rhythm, rateMul, shove, airMul, preMove, dashVel, postMove, tick, steer, stillTick, onSpawnProj, onRemoteProj, beamFx, spawnEffect, update, hitMeshes, isTurretId, hitTurret, blastTurrets, onMsg, clear, warmObjects, drawRadar, botMayFire, botThreat, titanFx, titanHud, swingCenter, titanPose, resetArms, onRemoteTitan, onBoom, throwHammer, spawnThrow, detonate, get turrets() { return turrets; }, get bubbles() { return bubbles; } };
+  return { dropScaled, camPull, LEAP, PROJ, FX, projMesh, fire, dmgMul, rhythm, rateMul, shove, airMul, preMove, dashVel, postMove, tick, steer, stillTick, onSpawnProj, onRemoteProj, beamFx, spawnEffect, update, hitMeshes, isTurretId, hitTurret, blastTurrets, onMsg, clear, warmObjects, drawRadar, botMayFire, botThreat, titanFx, titanHud, swingCenter, titanPose, resetArms, onRemoteTitan, onBoom, throwHammer, spawnThrow, detonate, get turrets() { return turrets; }, get bubbles() { return bubbles; } };
 })();
 
 </script>
@@ -8489,7 +8507,7 @@ const Brawl = (() => {
   const smash = () => match.mode === 'smash';
   const pct = p => Math.max(0, Math.round(SM - (p.hp || 0)));
   // knockback multiplier from the victim's damage %: 0.75x fresh, ~2.3x at 100%, ~3.8x at 200%
-  const kbMul = p => smash() && p ? 0.75 + pct(p) / 65 : 1;
+  const kbMul = p => smash() && p ? 0.75 + pct(p) / 65 : match.mode === 'hball' ? 0.6 : 1;
   // owner side, inside applyDamage: scale the shove by the % so far, add the new %, never kill
   function smashDmg(v, dmg, info) {
     if (info && Number.isFinite(info.kb) && info.kb) {
@@ -9133,7 +9151,7 @@ const SaveXfer = (() => {
 //  Browsers may serve a cached older page for a while (GitHub Pages: 10 min), and mismatched versions can't
 //  play together, so the game polls version.json and offers a cache-busting reload when a newer build is out.
 // =====================================================================
-const BUILD_ID = '6fb384572f';
+const BUILD_ID = '5cdbd980db';
 const UpdateCheck = (() => {
   let shown = false;
   async function check() {
@@ -9703,7 +9721,7 @@ const BOT_DIFF = {
 const botDiff = () => match.mode === 'horde' ? Prog.adaptiveDiff(760 + Horde.wave * 45) : Settings.botDiff === 'adaptive' ? Prog.adaptiveDiff() : BOT_DIFF[Settings.botDiff] || BOT_DIFF.normal;
 const NET_DT = 1 / 30;   // state send rate on direct P2P links (30 Hz); the MQTT relay stays at 20 Hz (netDt)
 const netDt = () => (net && net.relay ? 1 / 20 : NET_DT);   // match length / respawn delay come from the match rules (R)
-const NET_PREFIX = 'slidefire-arena-v16-';
+const NET_PREFIX = 'slidefire-arena-v17-';
 
 // ---------------- weapons ----------------
 const WEAPONS = [
@@ -9764,7 +9782,7 @@ const WEAPONS = [
   { key: 'locust', name: 'LOCUST', short: 'LOCUST', desc: 'Power weapon: a salvo of 6 homing micro-missiles shared among enemies near your aim', pickup: '3 SALVOS · AIM NEAR ENEMIES', power: true, proj: 'locust', salvo: 6, rate: 0.9, dmg: 22, mag: 3, reload: 99, zoom: 0.85, adsTime: 0.14, recoil: 0.04, shake: 0.16, sound: 'locust', tracerColor: 0xffa030, flash: 0xffb050, gunLen: 1.1 },
   { key: 'sentinel', name: 'SENTINEL', short: 'SENTRY', desc: 'Power weapon: throw a turret that guns down enemies it can see', pickup: '1 TURRET · 18 S · IT CAN BE SHOT DOWN', power: true, proj: 'turret', rate: 0.6, mag: 1, reload: 99, zoom: 1, adsTime: 0.1, recoil: 0, shake: 0.05, sound: 'throw', tracerColor: 0x50ff9a, flash: 0x50ff9a, gunLen: 0.8 },
   // ---- HAMMERFALL: the TITAN HAMMER (mode weapon). Area swing: dead-centre 100, off-centre 85 -> 25 at the edge; RMB slam-dash; air slam ----
-  { key: 'titan', name: 'TITAN HAMMER', short: 'TITAN', desc: 'Hammerfall: a giant hammer. Centre hits kill, edges bruise, everything flies', special: 'Swing hits an AREA in front of you: dead-centre kills, the edge only bruises. RMB: charge, LEAP high toward your aim and crash down (everyone sees the red landing ring). Aim mid-leap to steer the crash, click to crash early; an aftershock follows. Hit a leaper with the hammer to SWAT them out of the sky. Look down mid-air to slam.', melee: true, titan: true, rate: 0.8, dmg: 100, mag: 1, reload: 0.1, range: 5, spread: 0, moveSpread: 0, adsMul: 1, zoom: 1, adsTime: 0.1, pellets: 1, recoil: 0, shake: 0.3, sound: 'hWind', tracerColor: 0xffb020, flash: 0xffb020, moveMul: 0.82, gunLen: 1.3 },
+  { key: 'titan', name: 'TITAN HAMMER', short: 'TITAN', desc: 'Hammerfall: a giant hammer. Centre hits kill, edges bruise, everything flies', special: 'Swing hits an AREA in front of you: dead-centre kills, the edge only bruises. RMB: charge, LEAP high toward your aim and crash down (everyone sees the red landing ring). Aim mid-leap to steer the crash, click to crash early; an aftershock follows. Hit a leaper with the hammer to SWAT them out of the sky. Look down mid-air to slam. Slams hit harder the further you fall: a full leap kills on a direct landing, diving off something high hits even harder.', melee: true, titan: true, rate: 0.8, dmg: 100, mag: 1, reload: 0.1, range: 5, spread: 0, moveSpread: 0, adsMul: 1, zoom: 1, adsTime: 0.1, pellets: 1, recoil: 0, shake: 0.3, sound: 'hWind', tracerColor: 0xffb020, flash: 0xffb020, moveMul: 0.82, gunLen: 1.3 },
 ];
 const W_SCATTER = 2, W_SNIPER = 3, W_ROCKET = 4, W_PISTOL = 5, W_VULTURE = 6, W_TRIDENT = 7, W_HAVOC = 8, W_STINGER = 9, W_RAIL = 10, W_HAIL = 11, W_ARC = 12, W_SING = 13, W_XBOW = 14, W_PINBALL = 15, W_SCORCH = 16, W_FANG = 17, W_KESTREL = 18, W_BLADE = 19,
   W_SURGE = 20, W_LUMEN = 21, W_ANVIL = 22, W_MAULER = 23, W_PIPER = 24, W_GEMINI = 25,
@@ -9823,7 +9841,7 @@ const MODES = {
   hide: { name: 'HIDE & SEEK', voice: 'hide and seek', desc: 'Party: hiders turn into props and hide while the seekers are blind. Found hiders become seekers. Misses cost seekers HP. {n} rounds.', limit: 4, teams: true, party: true, noClock: true, power: false, noNades: true },
   hammer: { name: 'HAMMERFALL', desc: 'Third-person hammer brawl: everyone swings a TITAN HAMMER. Dead-centre hits kill, edges bruise. RMB leaps sky-high and crashes down where you aim, double jump in the air. Knock enemies off the floating arena. First to {n}.', limit: 15, loadout: [W_TITAN], infinite: true, noNades: true, power: false, tp: true, djump: true, air: 1.5 },
   smash: { name: 'SMASHFALL', desc: 'Hammer brawl where damage never kills: every hit raises your DAMAGE %, and the higher it gets, the further hits launch you. The only way to die is being knocked off THE CRUCIBLE. First to {n} ring-outs.', limit: 10, loadout: [W_TITAN], infinite: true, noNades: true, power: false, tp: true, djump: true, air: 1.5, hpFix: 999, noRegen: true },
-  hball: { name: 'HAMMER BALL', desc: 'Red vs Blue soccer with titan hammers. Swing to shoot (look up to loft it), uppercut to pop it up, leap-slam to blast it, throw the hammer at it. Knock defenders off THE PITCH. First to {n} goals.', limit: 5, teams: true, loadout: [W_TITAN], infinite: true, noNades: true, power: false, tp: true, djump: true, air: 1.5 },
+  hball: { name: 'HAMMER BALL', desc: 'Red vs Blue soccer with titan hammers. Swing to shoot (look up to loft it), uppercut to pop it up, leap-slam to blast it, throw the hammer at it. Hammers only BUMP players here (no damage), but you can still bump them off THE PITCH. First to {n} goals.', limit: 5, teams: true, loadout: [W_TITAN], infinite: true, noNades: true, power: false, tp: true, djump: true, air: 1.5 },
   instagib: { name: 'INSTAGIB', voice: 'instagib', desc: 'Everyone gets an infinite railgun. One hit kills. First to {n}.', limit: 20, loadout: [W_RAIL], igPick: true, infinite: true, noNades: true, power: false },
 };
 // ---------------- match rules: chosen by the host in the lobby, sent to everyone with each match ----------------
@@ -11146,6 +11164,7 @@ function dealDamage(att, vid, dmg, info, point) {
   const v = players.get(vid); if (!v || !v.alive || allies(att, v)) return;
   dmg = Math.round(Party.damage(att, v, info, Mut.damage(info, dmg))); info.a = att.id;
   if (dmg <= 0) return;                                                                            // HEADSHOTS ONLY: a body hit does nothing
+  if (match.mode === 'hball') { dmg = 1; info.bump = 1; }                                          // HAMMER BALL: hits only bump (applyDamage turns it into a shove)
   const W = WEAPONS[info.w];
   if (W && W.leech && owns(att) && att.alive) att.hp = Math.min(R.hp, att.hp + dmg * W.leech);   // STINGER lifesteal
   if (W && W.suppress) info.sup = 1;
@@ -11157,7 +11176,8 @@ function dealDamage(att, vid, dmg, info, point) {
     if (st.n >= 7) { st.n = 0; info.sc = 1; dmg += 45; explosionFx(V3().copy(point || v.pos), 1.6, false); if (att === me) { SFX.play('concussion', 0.8); showAnnounce('SUPERCOMBINE', ''); } }
   }
   if (att === me && !owns(v)) { const base = time - (v.predT || -9) < 0.4 ? Math.min(v.hp, v.predHp) : v.hp; v.predHp = Math.max(0, base - dmg); v.predT = time; }   // health bar reacts before the owner confirms
-  if (att === me && (!info.burn || time - (v._fbT || 0) > 0.16)) { v._fbT = time; hitFeedback(dmg, info.h, info.c, point, vid); } else if (att === me) noteDealt(vid, dmg);   // flames: don't spam hitmarkers
+  if (att === me && info.bump) SFX.play('hit', 0.4);
+  else if (att === me && (!info.burn || time - (v._fbT || 0) > 0.16)) { v._fbT = time; hitFeedback(dmg, info.h, info.c, point, vid); } else if (att === me) noteDealt(vid, dmg);   // flames: don't spam hitmarkers
   if (owns(v)) applyDamage(v, dmg, info);
   else send({ t: 'hit', v: vid, dmg, ...info });
 }
@@ -11166,7 +11186,8 @@ function applyDamage(v, dmg, info) {
   if (!v.alive || v.spawnProt > 0 || match.state !== 'playing' || match.cd > 0) return;
   if (info.h && info.w === W_VULTURE && v.hp >= R.hp && dmg >= R.hp) info.ot = true;
   if (v.armor > 0 && match.mode === 'breach') { const ab = Math.min(v.armor, Math.round(dmg * (info.h ? 0.2 : 0.5))); v.armor -= ab; dmg -= ab; }
-  if (match.mode === 'smash') dmg = Brawl.smashDmg(v, dmg, info);   // SMASHFALL: damage % instead of death, knockback grows
+  if (match.mode === 'smash') dmg = Brawl.smashDmg(v, dmg, info);
+  if (match.mode === 'hball' || info.bump) { dmg = 0; if (info.kb) { info.kb *= 0.55; info.kbUp = Math.min(Number.isFinite(info.kbUp) ? info.kbUp : 3, 4.5); } }   // SMASHFALL: damage % instead of death, knockback grows
   v.hp -= dmg; v.lastDmgT = time;
   if (info.kb && Number.isFinite(info.kb)) Arms.shove(v, info);
   if (info.sup) v.slowUntil = time + 0.6;
@@ -11368,7 +11389,7 @@ function updateStuckBolts(dt) { for (const s of stuckBolts) if (s.t > 0 && (s.t 
 function explode(m) {
   const idx = projs.findIndex(r => r.rid === m.rid);
   if (idx >= 0) { scene.remove(projs[idx].mesh); projs.splice(idx, 1); }
-  const P = projParams(m);
+  const P = Arms.dropScaled(projParams(m), m);   // HAMMERFALL slams: damage / knock / radius scale with the drop height
   const c = V3().fromArray(m.p);
   if (P.effect) { (Arms.FX.includes(P.effect) ? Arms : Extras).spawnEffect(P.effect, c, m); return; }   // smoke / vortex / decoy / stasis / turret
   if (P.bolt) { boltImpact(c, m); return; }
@@ -11397,6 +11418,7 @@ function applyBlast(m, c, P) {
     if (P.conc && p === me) { concFlash = 1; shakeAmt += 0.6; }
     let dmg = P.dmg * (0.25 + 0.75 * f) * (m.c ? 1.25 : 1);
     if (self) dmg *= P.self;
+    if (match.mode === 'hball') dmg = 0;   // HAMMER BALL: blasts shove, never hurt
     dmg = Math.round(dmg);
     if (dmg < 1) continue;
     if (!self) {
