@@ -8554,7 +8554,7 @@ const SaveXfer = (() => {
 //  Browsers may serve a cached older page for a while (GitHub Pages: 10 min), and mismatched versions can't
 //  play together, so the game polls version.json and offers a cache-busting reload when a newer build is out.
 // =====================================================================
-const BUILD_ID = 'aa34b11337';
+const BUILD_ID = 'e06cc645cb';
 const UpdateCheck = (() => {
   let shown = false;
   async function check() {
@@ -9360,6 +9360,29 @@ function bladeGeo(cmds, depth = 0.008, holes) {
   const g = new THREE.ExtrudeGeometry(s, { depth, bevelEnabled: true, bevelThickness: 0.0015, bevelSize: 0.0012, bevelSegments: 1, curveSegments: 12 });
   g.translate(0, 0, -depth / 2); g.rotateY(Math.PI / 2);
   const uv = g.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * 7, uv.getY(i) * 7);
+  return g;
+}
+// first-person gloved hand + sleeved forearm gripping a knife handle (grip axis = z, centred on the origin)
+function buildKnifeHand() {
+  const env = knifeEnv();
+  const glove = new THREE.MeshStandardMaterial({ color: 0x0d0e11, roughness: 0.6, metalness: 0.1, envMap: env, envMapIntensity: 0.5 });
+  const pad = new THREE.MeshStandardMaterial({ color: 0x3a2e24, roughness: 0.85, metalness: 0 });   /* leather knuckle + fingertip pads */
+  const sleeve = new THREE.MeshStandardMaterial({ color: 0x141a26, roughness: 0.95, metalness: 0 });
+  const g = new THREE.Group();
+  const B = (sx, sy, sz, m, x, y, z, rx = 0, ry = 0, rz = 0) => { const o = new THREE.Mesh(new THREE.BoxGeometry(sx, sy, sz), m); o.position.set(x, y, z); o.rotation.set(rx, ry, rz); g.add(o); return o; };
+  B(0.024, 0.088, 0.104, glove, 0.036, 0.004, 0.002);                                   // back of the hand (outside of the grip)
+  B(0.03, 0.024, 0.098, pad, 0.026, -0.04, 0.002, 0, 0, 0.5);                           // knuckle pads
+  for (let i = 0; i < 4; i++) {                                                         // fingers curled under and around the grip
+    const z = -0.036 + i * 0.024, w = i === 3 ? 0.019 : 0.022;
+    B(0.052, 0.022, w, glove, 0.004, -0.044, z, 0, 0, -0.12);
+    B(0.021, 0.05, w, glove, -0.03, -0.018, z, 0, 0, 0.15);
+    B(0.018, 0.018, w * 0.92, pad, -0.033, 0.012, z);                                     // fingertips
+  }
+  B(0.02, 0.022, 0.066, glove, -0.02, 0.04, -0.03, 0.1, -0.35, 0.3);                     // thumb over the top
+  B(0.064, 0.074, 0.07, glove, 0.016, -0.004, 0.086);                                    // wrist
+  B(0.088, 0.094, 0.36, sleeve, 0.024, -0.016, 0.29);                                    // forearm, out of view
+  B(0.094, 0.1, 0.022, vmAccent, 0.024, -0.016, 0.122);                                  // cuff stripe
+  g.traverse(o => { if (o.isMesh) o.castShadow = false; });
   return g;
 }
 // a soft studio environment for knife steel: without one, metal has nothing to reflect and renders near black
@@ -11639,7 +11662,7 @@ const vmAccent = new THREE.MeshStandardMaterial({ color: 0x00e5ff, emissive: 0x0
   B(kn, .05, .09, .025, dark, 0, -.005, -.06); B(kn, .052, .012, .028, vmAccent, 0, .035, -.06);    // guard
   B(kn, .034, .05, .14, body, 0, -.005, .03); for (let i = 0; i < 4; i++) B(kn, .038, .054, .012, dark, 0, -.005, -.02 + i * .03);   // wrapped grip
   B(kn, .04, .056, .03, metal, 0, -.005, .11);
-  kn.rotation.set(0.5, -0.3, -0.24); kn.position.set(-0.01, 0.01, 0.02); kn.scale.setScalar(0.85);   // raised into view, blade tilted up so you see it
+  kn.rotation.set(0.38, 0.32, -0.75); kn.position.set(-0.03, 0.035, 0.0); kn.scale.setScalar(0.72);   // held in the fist: low right, blade forward + up-left
   kn.userData.muzzle = V3(0, 0, -.38);
   vm.knifePivot = new THREE.Group(); kn.add(vm.knifePivot);
   const classic = new THREE.Group(); while (kn.children.length > 1) classic.add(kn.children[0]); vm.knifePivot.add(classic);
@@ -11647,6 +11670,7 @@ const vmAccent = new THREE.MeshStandardMaterial({ color: 0x00e5ff, emissive: 0x0
   classic.traverse(o => { if (o.isMesh && o.material === metal) o.material = vm.knifeBlade; });
   vm.knives = Object.assign({ blade: classic }, buildKnives(vm.knifePivot, { metal: vm.knifeBlade, body, dark }));
   for (const k in vm.knives) vm.knives[k].userData.base = vm.knives[k].position.clone();
+  vm.knifeHand = buildKnifeHand(); kn.add(vm.knifeHand);
   vm.mats = { body, dark, metal, glass };
   // ================= PATCH 4 models =================
   // SURGE: bullpup receiver with swept glowing speed fins, mag behind the grip
@@ -11856,6 +11880,7 @@ function updateViewmodel(dt) {
   if (me.weapon === W_BLADE) {   // knife model + inspect / draw animations
     const kt = knifeOf(Settings.knife);
     for (const k in vm.knives) vm.knives[k].visible = k === kt;
+    if (vm.knifeHand) vm.knifeHand.position.set(0, kt === 'blade' ? -0.006 : 0.03, kt === 'blade' ? 0.032 : 0.04);   // on the grip (the classic blade sits a little lower)
     const ksd = SKINS[Settings.knifeSkin | 0]; if (vm.knifeBlade.emissiveMap && ksd) vm.knifeBlade.emissiveIntensity = SkinTex.glow(ksd, time);
     if (vm.inspectT > 0 && (mouseDown || rmbDown || me.switchT > 0.2 || !me.alive)) vm.inspectT = 0;
     vm.inspectT = Math.max(0, (vm.inspectT || 0) - dt);
