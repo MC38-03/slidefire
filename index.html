@@ -8554,7 +8554,7 @@ const SaveXfer = (() => {
 //  Browsers may serve a cached older page for a while (GitHub Pages: 10 min), and mismatched versions can't
 //  play together, so the game polls version.json and offers a cache-busting reload when a newer build is out.
 // =====================================================================
-const BUILD_ID = 'f890aecee5';
+const BUILD_ID = 'd7c820c384';
 const UpdateCheck = (() => {
   let shown = false;
   async function check() {
@@ -11676,7 +11676,7 @@ const vmAccent = new THREE.MeshStandardMaterial({ color: 0x00e5ff, emissive: 0x0
   classic.traverse(o => { if (o.isMesh && o.material === metal) o.material = vm.knifeBlade; });
   vm.knives = Object.assign({ blade: classic }, buildKnives(vm.knifePivot, { metal: vm.knifeBlade, body, dark }));
   for (const k in vm.knives) vm.knives[k].userData.base = vm.knives[k].position.clone();
-  vm.knifeHand = buildKnifeHand(); vm.knifeHand.scale.x = -1; kn.add(vm.knifeHand);   // mirrored: the back of the hand + knuckles face you, the fingers wrap the far side
+  // (a first-person glove used to sit here: buildKnifeHand() / vm.knifeHand; removed by request, the knives float like the guns)
   vm.mats = { body, dark, metal, glass };
   // ================= PATCH 4 models =================
   // SURGE: bullpup receiver with swept glowing speed fins, mag behind the grip
