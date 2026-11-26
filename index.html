@@ -9255,7 +9255,7 @@ const SaveXfer = (() => {
 //  Browsers may serve a cached older page for a while (GitHub Pages: 10 min), and mismatched versions can't
 //  play together, so the game polls version.json and offers a cache-busting reload when a newer build is out.
 // =====================================================================
-const BUILD_ID = '01d138a20b';
+const BUILD_ID = '9eb7a755c7';
 const UpdateCheck = (() => {
   let shown = false;
   async function check() {
@@ -10475,7 +10475,7 @@ function avExtract(g, root, i, T) {
     g.updateMatrixWorld(true);
     const inv = g.matrixWorld.clone().invert(), buckets = new Map();
     root.traverse(o => {
-      if (!o.isMesh || o.material === vm.mats.glass) return;
+      if (!o.isMesh || o.material === vm.mats.glass || o.userData.vmOnly) return;
       const m = o.material, kind = m === vm.paints[i] ? 'body' : m === vm.mats.dark ? 'dark' : m === vm.mats.metal ? 'metal' : m === vm.knifeBlade ? 'kblade' : m === vmAccent ? 'accent' : 'other';
       const key = kind === 'other' ? m.uuid : kind;
       const geo = o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone();
@@ -10551,6 +10551,7 @@ function buildAvatar(p) {
     const g = new THREE.Group();
     for (const { geo, kind, mat } of parts) { const o = new THREE.Mesh(geo, kind === 'body' ? gunMat : kind === 'dark' ? AV_DARK : kind === 'metal' ? AV_METAL : kind === 'kblade' ? (SkinTex.gunMat(p.knifeSkin | 0) || AV_METAL) : kind === 'accent' ? accent : mat); o.castShadow = true; g.add(o); }
     if (i === W_TITAN) g.scale.setScalar(2.8);   // HAMMERFALL: the hammer is huge
+    const tp = vm.guns[i] && vm.guns[i].userData.tp; if (tp) { g.scale.setScalar(tp.s || 1); g.rotation.set(tp.rx || 0, tp.ry || 0, tp.rz || 0); }   // power weapons: bigger, melee ones held upright
     g.visible = i === 0; gunPivot.add(g); return g;
   });
   const muzzle = new THREE.Object3D(); muzzle.position.set(0, 0, -0.75); gunPivot.add(muzzle);
@@ -12474,54 +12475,172 @@ const vmAccent = new THREE.MeshStandardMaterial({ color: 0x00e5ff, emissive: 0x0
   gp(0); { const gl = gp(-.42); gl.rotation.z = .12; gl.position.y = -.03; }
   HOLO(gm, .13, -.08, .05, .055, .042);
   gm.userData.muzzle = V3(0, .02, -.24); gm.userData.muzzles = [V3(0, .02, -.24), V3(-.42, -.01, -.24)];
-  // GRAVITY MAUL: long handle, heavy head with a glowing core
+  // ---- POWER WEAPONS: each has its own fixed glow colour, animated parts (vm.anims, run while it's in hand) and a third-person pose (userData.tp) ----
+  vm.anims = [];
+  const GL = (c, o = 1) => new THREE.MeshBasicMaterial(o < 1 ? { color: c, transparent: true, opacity: o, blending: THREE.AdditiveBlending, depthWrite: false } : { color: c });
+  const MS = (g, geo, m, x, y, z) => { const o = new THREE.Mesh(geo, m); o.position.set(x, y, z); g.add(o); return o; };
+  const CX = (g, r1, r2, len, m, x, y, z, seg = 14) => MS(g, new THREE.CylinderGeometry(r1, r2, len, seg).rotateZ(Math.PI / 2), m, x, y, z);   // cylinder along x
+  const TUBE = (g, pts, r, m, seg = 24) => MS(g, new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), seg, r, 6, false), m, 0, 0, 0);
+  const TOR = (g, R, r, m, x, y, z, seg = 32) => MS(g, new THREE.TorusGeometry(R, r, 6, seg), m, x, y, z);
+  const ANIM = (g, f) => vm.anims.push([g, f]);
+  // GRAVITY MAUL: wrapped haft, a drum head with octagonal caps and glowing faces, an open cage around a spinning gravity core,
+  // a gyroscope ring and debris caught in its pull
   const mu = new THREE.Group();
-  C(mu, .022, .022, .55, dark, 0, 0, -.1);
-  for (let i = 0; i < 4; i++) C(mu, .026, .026, .02, metal, 0, 0, .1 - i * .04);
-  { const hd = SUB(mu, 0, 0, -.42); B(hd, .22, .13, .13, body, 0, 0, 0); B(hd, .224, .02, .134, vmAccent, 0, .04, 0); B(hd, .224, .02, .134, vmAccent, 0, -.04, 0);
-    B(hd, .05, .15, .15, metal, .13, 0, 0); B(hd, .05, .15, .15, metal, -.13, 0, 0);
-    const core = new THREE.Mesh(new THREE.SphereGeometry(.035, 12, 8), vmAccent); core.position.set(0, 0, -.07); hd.add(core); }
+  {
+    const muG = GL(0xa8bcff), muE = GL(0x6a8cff, 0.35);
+    C(mu, .02, .024, .64, dark, 0, 0, -.1, 10);
+    for (let i = 0; i < 6; i++) C(mu, .027, .027, .022, i % 2 ? metal : vmAccent, 0, 0, .16 - i * .045, 10);
+    C(mu, .032, .026, .05, metal, 0, 0, .23, 8); MS(mu, new THREE.OctahedronGeometry(.022), muG, 0, 0, .27);
+    C(mu, .034, .03, .06, metal, 0, 0, -.36, 8);
+    const hd = SUB(mu, 0, 0, -.46);
+    for (const s of [-1, 1]) {
+      CX(hd, .09, .09, .075, metal, s * .155, 0, 0, 8); CX(hd, .094, .094, .014, vmAccent, s * .11, 0, 0, 8);
+      CX(hd, .066, .076, .03, dark, s * .207, 0, 0, 8); CX(hd, .044, .044, .006, muG, s * .224, 0, 0, 16);
+      for (let k = 0; k < 8; k++) { const a = k / 8 * Math.PI * 2 + Math.PI / 8; B(hd, .06, .014, .014, dark, s * .158, Math.cos(a) * .088, Math.sin(a) * .088); }
+    }
+    for (const y of [-1, 1]) for (const z of [-1, 1]) B(hd, .2, .014, .014, metal, 0, y * .052, z * .052);
+    const core = MS(hd, new THREE.IcosahedronGeometry(.042, 0), muG, 0, 0, 0), halo = MS(hd, new THREE.SphereGeometry(.07, 14, 10), muE, 0, 0, 0);
+    const ring = TOR(hd, .11, .005, muG, 0, 0, 0, 40);
+    const deb = SUB(hd, 0, 0, 0);
+    for (let k = 0; k < 5; k++) { const a = k / 5 * Math.PI * 2; B(deb, .02, .015, .018, k % 2 ? metal : dark, 0, Math.cos(a) * .15, Math.sin(a) * .15).rotation.set(a, a * 2, 0); }
+    ANIM(mu, (t, dt) => {
+      core.rotation.x += dt * 2.6; core.rotation.y += dt * 1.7; halo.scale.setScalar(1 + Math.sin(t * 6) * .12);
+      ring.rotation.set(t * 1.3, Math.PI / 2 + Math.sin(t * .9) * .45, 0); deb.rotation.x = -t * .8; deb.position.y = Math.sin(t * 2) * .006;
+    });
+  }
   mu.rotation.set(.35, -.1, -.25); mu.position.set(.03, -.04, .05);
-  mu.userData.muzzle = V3(0, 0, -.42);
-  // ORBITAL LANCE: laser designator with a small uplink dish
+  mu.userData.muzzle = V3(0, 0, -.46); mu.userData.tp = { s: 1.75, rx: 1.2 };
+  // ORBITAL LANCE: a heavy designator: battery packs, an emitter with spinning reticle rings around a red lens, a laser sight,
+  // and a side-mounted satellite uplink dish that tracks the sky
   const ob = new THREE.Group();
-  B(ob, .07, .07, .34, body, 0, .02, -.05); B(ob, .072, .006, .32, dark, 0, -.012, -.05);
-  C(ob, .02, .02, .1, metal, 0, .02, -.26); C(ob, .03, .012, .03, vmAccent, 0, .02, -.32);
-  { const dish = new THREE.Mesh(new THREE.CylinderGeometry(.05, .012, .025, 14), metal); dish.position.set(0, .1, .06); ob.add(dish); B(ob, .006, .05, .006, dark, 0, .07, .06); }
-  VENTS(ob, .036, .02, .0, 3, .04, .018, .02);
-  B(ob, .04, .04, .1, dark, 0, -.04, -.12); B(ob, .042, .006, .1, vmAccent, 0, -.06, -.12);
-  GUARD(ob, -.05, .07, .06); GRIP(ob, 0, -.1, .12, -.3, .055, .13, .07);
-  HOLO(ob, .14, -.12, .055, .06, .045);
-  ob.userData.muzzle = V3(0, .02, -.34);
-  // PHASE SCYTHE: long haft, curved glowing blade
+  {
+    const obG = GL(0xff6a5a), obE = GL(0xff3030, 0.4), dishMat = metal.clone(); dishMat.side = THREE.DoubleSide;
+    B(ob, .08, .08, .46, body, 0, .02, -.07); B(ob, .082, .006, .44, dark, 0, -.008, -.07); B(ob, .006, .014, .36, vmAccent, -.042, .035, -.07);
+    B(ob, .05, .012, .3, dark, 0, .066, -.1);
+    for (const s of [-1, 1]) { B(ob, .03, .055, .16, dark, s * .056, .005, .04); for (let k = 0; k < 3; k++) C(ob, .011, .011, .03, obG, s * .073, .005, .095 - k * .05, 8); }
+    C(ob, .036, .046, .1, dark, 0, .02, -.34, 12); C(ob, .052, .052, .02, metal, 0, .02, -.3, 12); C(ob, .03, .03, .012, obG, 0, .02, -.393, 16);
+    const rA = TOR(ob, .058, .004, obG, 0, .02, -.41), rB = TOR(ob, .042, .003, vmAccent, 0, .02, -.43);
+    for (let k = 0; k < 4; k++) { const a = k / 4 * Math.PI * 2 + .785; B(rA, .014, .014, .006, obG, Math.cos(a) * .058, Math.sin(a) * .058, 0); }
+    const beam = B(ob, .0025, .0025, .7, obE, 0, .02, -.76); beam.userData.vmOnly = true;
+    // uplink: arm, a dish that spins around its mast, feed horn with a blinking tip
+    B(ob, .05, .014, .014, metal, .062, .03, .0); B(ob, .014, .07, .014, metal, .085, .065, .0);
+    const dish = SUB(ob, .085, .1, .0), tilt = SUB(dish, 0, 0, 0); tilt.rotation.x = -.5;
+    MS(tilt, new THREE.SphereGeometry(.075, 18, 5, 0, Math.PI * 2, 0, 1.0), dishMat, 0, .075, 0).rotation.x = Math.PI;
+    TOR(tilt, .063, .004, vmAccent, 0, .035, 0).rotation.x = Math.PI / 2;
+    B(tilt, .005, .06, .005, metal, 0, .03, 0); const tip = MS(tilt, new THREE.SphereGeometry(.009, 8, 6), obG, 0, .062, 0);
+    // whip antenna on the left
+    B(ob, .005, .17, .005, metal, -.035, .14, .14); const at = MS(ob, new THREE.SphereGeometry(.007, 8, 6), obG, -.035, .228, .14);
+    GUARD(ob, -.05, .07, .06); GRIP(ob, 0, -.1, .12, -.3, .055, .13, .07);
+    HOLO(ob, .14, -.12, .055, .06, .045);
+    ANIM(ob, t => {
+      rA.rotation.z = t * 1.5; rB.rotation.z = -t * 2.3; beam.material.opacity = .25 + Math.random() * .2;
+      dish.rotation.y = t * .9; tilt.rotation.x = -.5 + Math.sin(t * 1.3) * .15;
+      tip.scale.setScalar(1 + Math.sin(t * 10) * .3); at.visible = (t * 1.5) % 1 < .5;
+    });
+  }
+  ob.userData.muzzle = V3(0, .02, -.42); ob.userData.tp = { s: 1.35 };
+  // PHASE SCYTHE: a reaper's scythe held across the body: long haft with a glowing spiral vein, a crescent blade with a white-hot
+  // cutting edge, a metal spine and a flickering phase ghost, a back spike, a pommel spike, and shards orbiting the head
   const sy = new THREE.Group();
-  C(sy, .018, .018, .7, dark, 0, 0, -.15);
-  for (let i = 0; i < 3; i++) C(sy, .022, .022, .02, vmAccent, 0, 0, .12 - i * .12);
-  for (let i = 0; i < 7; i++) { const t = i / 6 * Math.PI * .62, R = .2, sg = SUB(sy, 0, R * Math.sin(t), -.5 - R * (1 - Math.cos(t)), -t); B(sg, .01, .075, .05 - i * .004, metal, 0, 0, 0); B(sg, .012, .075, .01, vmAccent, 0, 0, .028 - i * .002); }
-  sy.rotation.set(.3, -.1, -.3); sy.position.set(.03, -.05, .05);
-  sy.userData.muzzle = V3(0, 0, -.5);
-  // STASIS: projector with a glass orb held by three prongs
+  {
+    const syG = GL(0xdcc8ff), syE = GL(0x9a6bff, 0.3);
+    const syM = new THREE.MeshStandardMaterial({ color: 0x1c1030, roughness: 0.3, metalness: 0.9, emissive: 0x3a1680, emissiveIntensity: 0.7 });
+    CY(sy, .016, 1.02, dark, 0, .05, 0, 8);
+    for (let i = 0; i < 6; i++) CY(sy, .021, .022, i % 2 ? metal : vmAccent, 0, -.2 + i * .036, 0, 8);
+    CY(sy, .023, .03, metal, 0, .2, 0, 8); CY(sy, .023, .03, metal, 0, -.27, 0, 8);
+    { const pts = []; for (let k = 0; k <= 30; k++) { const a = k * .75; pts.push(V3(Math.cos(a) * .018, -.02 + k * .018, Math.sin(a) * .018)); } TUBE(sy, pts, .0035, syG, 90); }
+    B(sy, .06, .08, .055, metal, 0, .57, 0); B(sy, .064, .014, .06, vmAccent, 0, .545, 0); B(sy, .064, .014, .06, vmAccent, 0, .6, 0);
+    MS(sy, new THREE.OctahedronGeometry(.024), syG, 0, .575, -.032); MS(sy, new THREE.OctahedronGeometry(.024), syG, 0, .575, .032);
+    MS(sy, new THREE.ConeGeometry(.02, .14, 6).rotateZ(-Math.PI / 2), metal, .1, .58, 0);
+    MS(sy, new THREE.ConeGeometry(.02, .11, 6).rotateZ(Math.PI), metal, 0, -.51, 0); TOR(sy, .024, .005, vmAccent, 0, -.44, 0).rotation.x = Math.PI / 2;
+    const sh = new THREE.Shape(); sh.moveTo(-.02, .62); sh.quadraticCurveTo(-.3, .8, -.6, .43); sh.quadraticCurveTo(-.3, .6, -.02, .52);
+    const ex = d => new THREE.ExtrudeGeometry(sh, { depth: d, bevelEnabled: true, bevelThickness: .003, bevelSize: .004, bevelSegments: 1, curveSegments: 20 }).translate(0, 0, -d / 2);
+    MS(sy, ex(.01), syM, 0, 0, 0);
+    const outer = new THREE.QuadraticBezierCurve3(V3(-.02, .62, 0), V3(-.3, .8, 0), V3(-.6, .43, 0)), inner = new THREE.QuadraticBezierCurve3(V3(-.6, .43, 0), V3(-.3, .6, 0), V3(-.02, .52, 0));
+    TUBE(sy, inner.getPoints(24), .006, syG, 40); TUBE(sy, outer.getPoints(24), .009, metal, 40);
+    for (const u of [.22, .42, .62]) { const a = outer.getPoint(u), b = inner.getPoint(1 - u), r = B(sy, .028, .008, .018, syG, (a.x + b.x) / 2, (a.y + b.y) / 2, 0); r.rotation.z = Math.atan2(a.y - b.y, a.x - b.x) + Math.PI / 2; }
+    const ghost = MS(sy, ex(.002).translate(.02, -.575, 0), syE, -.02, .575, 0); ghost.scale.setScalar(1.14);
+    const shards = SUB(sy, -.25, .6, 0); for (let k = 0; k < 3; k++) MS(shards, new THREE.OctahedronGeometry(.014), syG, 0, 0, 0);
+    ANIM(sy, t => {
+      ghost.material.opacity = .2 + Math.random() * .18; ghost.scale.setScalar(1.12 + Math.sin(t * 9) * .025);
+      shards.children.forEach((o, k) => { const a = t * 1.6 + k * 2.094; o.position.set(Math.cos(a) * .22, Math.sin(a * 1.3) * .05 + .03, Math.sin(a) * .12); o.rotation.set(t * 3, t * 2, 0); });
+    });
+  }
+  sy.rotation.set(-.25, -.55, .2); sy.position.set(.07, .07, -.06); sy.scale.setScalar(.85);
+  sy.userData.muzzle = V3(-.3, .6, 0); sy.userData.tp = { s: 1.9, ry: -.9 };
+  // STASIS: a projector holding a frozen-time orb inside three slow gyroscope rings, cooling fins, a coolant canister and a ticking dial
   const sx = new THREE.Group();
-  B(sx, .085, .08, .32, body, 0, .0, .04); B(sx, .087, .006, .3, dark, 0, -.03, .04);
-  { const orb = new THREE.Mesh(new THREE.SphereGeometry(.06, 16, 12), vmAccent); orb.position.set(0, .01, -.2); sx.add(orb); vm.stasisOrb = orb; }
-  for (let i = 0; i < 3; i++) { const a = i / 3 * Math.PI * 2; B(sx, .012, .012, .16, metal, Math.cos(a) * .07, .01 + Math.sin(a) * .07, -.2); }
-  C(sx, .075, .075, .012, vmAccent, 0, .01, -.12);
-  GUARD(sx, -.05, .1, .07); GRIP(sx, 0, -.11, .14, -.3);
-  B(sx, .06, .07, .1, body, 0, -.02, .25);
-  sx.userData.muzzle = V3(0, .01, -.28);
-  // LOCUST: 2x3 micro-missile pod
+  {
+    const sxG = GL(0xd0faff), sxE = GL(0x7fe8ff, 0.3);
+    B(sx, .09, .085, .34, body, 0, .0, .05); B(sx, .092, .006, .32, dark, 0, -.03, .05); B(sx, .006, .014, .28, vmAccent, -.047, .02, .05);
+    for (let k = 0; k < 5; k++) B(sx, .11, .008, .024, metal, 0, .046, .15 - k * .04);
+    for (const s of [-1, 1]) { B(sx, .014, .02, .16, metal, s * .052, .01, -.17); B(sx, .022, .034, .034, dark, s * .052, .01, -.25); C(sx, .008, .008, .012, sxG, s * .052, .01, -.27, 8); }
+    C(sx, .06, .07, .03, metal, 0, .01, -.11, 16); C(sx, .062, .062, .008, vmAccent, 0, .01, -.094, 16);
+    const so = SUB(sx, 0, .01, -.21);
+    const orb = MS(so, new THREE.SphereGeometry(.045, 16, 12), sxG, 0, 0, 0), oh = MS(so, new THREE.SphereGeometry(.068, 16, 12), sxE, 0, 0, 0);
+    const gy = [0, 1, 2].map(k => TOR(so, .074 + k * .01, .0035, k === 1 ? vmAccent : metal, 0, 0, 0, 40));
+    const motes = SUB(so, 0, 0, 0); for (let k = 0; k < 5; k++) { const a = k / 5 * Math.PI * 2; MS(motes, new THREE.OctahedronGeometry(.008), sxG, Math.cos(a) * .115, Math.sin(a * 2) * .03, Math.sin(a) * .115); }
+    CY(sx, .022, .1, sxE, -.068, .03, .06, 12); CY(sx, .026, .012, metal, -.068, .085, .06, 12); CY(sx, .026, .012, metal, -.068, -.025, .06, 12);
+    const dial = SUB(sx, .047, -.005, .1);
+    CX(dial, .028, .028, .006, dark, 0, 0, 0, 20); const dr = TOR(dial, .028, .003, vmAccent, 0, 0, 0); dr.rotation.y = Math.PI / 2;
+    const hand = SUB(dial, .005, 0, 0); B(hand, .003, .022, .004, sxG, 0, .011, 0);
+    vm.stasisOrb = orb;
+    ANIM(sx, t => {
+      gy[0].rotation.set(t * .9, 0, 0); gy[1].rotation.set(.6, t * 1.1, 0); gy[2].rotation.set(t * .5, t * .7, 0);
+      oh.scale.setScalar(1 + Math.sin(t * 2.2) * .1); motes.rotation.y = t * .35; hand.rotation.x = -Math.floor(t * 2) * Math.PI / 6;
+    });
+    GUARD(sx, -.05, .1, .07); GRIP(sx, 0, -.11, .14, -.3);
+    B(sx, .06, .07, .1, body, 0, -.02, .25);
+  }
+  sx.userData.muzzle = V3(0, .01, -.29); sx.userData.tp = { s: 1.35 };
+  // LOCUST: a 3x3 micro-missile pod with glowing warheads (one row per salvo left), a targeting module with a sweeping radar,
+  // chasing lock lights, heat fins and rear exhaust glow
   const lc = new THREE.Group();
-  B(lc, .16, .11, .36, body, 0, .03, -.12); B(lc, .162, .006, .34, dark, 0, -.02, -.12);
-  for (let r = 0; r < 2; r++) for (let c = 0; c < 3; c++) { C(lc, .02, .02, .04, dark, -.05 + c * .05, .055 - r * .05, -.31); C(lc, .022, .022, .008, vmAccent, -.05 + c * .05, .055 - r * .05, -.333); }
-  B(lc, .006, .08, .3, vmAccent, -.083, .03, -.12);
-  GUARD(lc, -.04, .1, .07); GRIP(lc, 0, -.09, .13, -.3);
-  B(lc, .06, .08, .14, dark, 0, -.0, .15);
-  lc.userData.muzzle = V3(0, .03, -.34);
-  // SENTINEL: the folded turret, held out in one hand
+  {
+    const lcG = GL(0xffc868), lcE = GL(0xffa030, 0.4);
+    B(lc, .2, .17, .38, body, 0, .03, -.12); B(lc, .204, .006, .36, dark, 0, -.02, -.12); B(lc, .204, .006, .36, dark, 0, .08, -.12);
+    B(lc, .21, .18, .02, dark, 0, .03, -.3); B(lc, .006, .12, .3, vmAccent, -.103, .03, -.12);
+    const rows = [[], [], []];
+    for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) {
+      const x = -.062 + c * .062, y = .085 - r * .055;
+      C(lc, .021, .021, .06, metal, x, y, -.33, 12); C(lc, .024, .024, .012, vmAccent, x, y, -.357, 12); C(lc, .017, .017, .01, dark, x, y, -.36, 12);
+      rows[r].push(MS(lc, new THREE.ConeGeometry(.013, .034, 8).rotateX(-Math.PI / 2), lcG, x, y, -.36));
+    }
+    for (const s of [-1, 1]) for (let k = 0; k < 4; k++) B(lc, .02, .13, .012, metal, s * .11, .03, -.05 - k * .05);
+    B(lc, .212, .03, .03, vmAccent, 0, .135, -.28); B(lc, .212, .03, .03, vmAccent, 0, -.075, -.28);
+    B(lc, .06, .04, .11, dark, .07, .135, -.14); C(lc, .016, .016, .02, lcG, .07, .135, -.2, 10);
+    const rad = SUB(lc, .07, .16, -.12); B(rad, .006, .024, .006, metal, 0, 0, 0); B(rad, .07, .022, .005, metal, 0, .015, 0); B(rad, .07, .004, .006, lcG, 0, .027, 0);
+    const leds = [0, 1, 2, 3].map(k => B(lc, .014, .008, .008, lcG, -.075 + k * .022, .118, -.3));
+    ANIM(lc, t => {
+      rad.rotation.y = t * 3; const n = me ? me.ammo[W_LOCUST] | 0 : 3;
+      rows.forEach((row, r) => row.forEach((w, c) => { w.visible = r < n; w.scale.setScalar(1 + Math.sin(t * 8 + r + c) * .12); }));
+      leds.forEach((l, k) => l.visible = Math.floor(t * 8) % 4 === k);
+    });
+    GUARD(lc, -.06, .1, .07); GRIP(lc, 0, -.12, .12, -.3);
+    B(lc, .06, .08, .14, dark, 0, -.0, .15);
+  }
+  lc.userData.muzzle = V3(0, .03, -.38); lc.userData.tp = { s: 1.35 };
+  // SENTINEL: the folded turret: hex base with tucked legs, an armoured head that scans with a glowing eye, twin barrels,
+  // a blinking antenna and a hover ring
   const tn = new THREE.Group();
-  B(tn, .14, .1, .14, body, 0, 0, -.12); B(tn, .142, .012, .142, vmAccent, 0, .02, -.12); B(tn, .06, .05, .12, dark, 0, .07, -.12);
-  C(tn, .012, .012, .12, metal, 0, .07, -.22); B(tn, .03, .03, .03, vmAccent, 0, .07, -.07); B(tn, .03, .08, .03, dark, 0, -.08, -.06);
-  tn.position.set(.02, -.03, .02); tn.userData.muzzle = V3(0, .07, -.28);
+  {
+    const tnG = GL(0xa8ffd0), tnE = GL(0x50ff9a, 0.35);
+    MS(tn, new THREE.CylinderGeometry(.085, .1, .045, 6), metal, 0, -.045, -.15); MS(tn, new THREE.CylinderGeometry(.102, .102, .01, 6), vmAccent, 0, -.02, -.15);
+    for (let k = 0; k < 3; k++) { const a = k / 3 * Math.PI * 2 + .5, l = B(tn, .018, .08, .018, dark, Math.cos(a) * .07, -.09, -.15 + Math.sin(a) * .07); l.rotation.set(Math.sin(a) * .5, 0, -Math.cos(a) * .5); }
+    const head = SUB(tn, 0, .035, -.15);
+    B(head, .12, .075, .12, body, 0, 0, 0); B(head, .124, .012, .124, vmAccent, 0, .018, 0); B(head, .08, .02, .1, dark, 0, .046, 0);
+    for (const s of [-1, 1]) B(head, .012, .06, .09, metal, s * .066, -.005, 0);
+    const eye = MS(head, new THREE.SphereGeometry(.02, 12, 8), tnG, 0, .008, -.062); TOR(head, .027, .004, metal, 0, .008, -.062);
+    for (const s of [-1, 1]) { C(head, .011, .011, .12, metal, s * .032, -.022, -.11, 8); C(head, .015, .015, .022, dark, s * .032, -.022, -.165, 8); C(head, .007, .007, .006, tnG, s * .032, -.022, -.177, 8); }
+    B(head, .004, .08, .004, metal, .045, .086, .04); const tip = MS(head, new THREE.SphereGeometry(.008, 8, 6), tnG, .045, .128, .04);
+    const hov = TOR(tn, .115, .004, tnE, 0, -.07, -.15); hov.rotation.x = Math.PI / 2;
+    GRIP(tn, 0, -.13, -.13, -.15, .05, .11, .06);
+    ANIM(tn, t => {
+      head.rotation.y = Math.sin(t * .9) * .35; eye.scale.setScalar(1 + Math.sin(t * 8) * .15);
+      tip.visible = (t * 2) % 1 < .5; hov.scale.setScalar(1 + Math.sin(t * 3) * .06); hov.position.y = -.07 + Math.sin(t * 3) * .006;
+    });
+  }
+  tn.position.set(.03, -.06, .02); tn.scale.setScalar(1.3); tn.userData.muzzle = V3(0, .015, -.33); tn.userData.tp = { s: 1.4 };
   // TITAN HAMMER: long banded haft, huge forged head with glowing core and spiked faces
   const th = new THREE.Group();
   C(th, .028, .028, .8, dark, 0, 0, -.18);
@@ -12559,6 +12678,29 @@ const vmAccent = new THREE.MeshStandardMaterial({ color: 0x00e5ff, emissive: 0x0
   B(jo, .004, .02, .16, vmAccent, -.034, .02, -.02);
   GUARD(jo, -.02, .0, .06); GRIP(jo, 0, -.08, .06, -.28, .055, .13, .07);
   jo.userData.muzzle = V3(0, .02, -.24);
+  // ---- the original four power weapons get animated parts too ----
+  {   // RAILGUN: accelerator rings spinning round the barrel, a live arc sheet between the rails
+    const G1 = GL(0xd0ffff), E1 = GL(0x9ffcff, 0.3);
+    const r1 = TOR(rg, .07, .004, G1, 0, 0, -.6), r2 = TOR(rg, .062, .004, G1, 0, 0, -.72), arc = B(rg, .07, .003, .6, E1, 0, .045, -.36);
+    ANIM(rg, t => { r1.rotation.set(Math.sin(t * 2) * .3, 0, t * 3); r2.rotation.set(0, Math.cos(t * 2) * .3, -t * 4); arc.material.opacity = .12 + Math.random() * .3; arc.position.y = .045 + (Math.random() - .5) * .006; });
+  }
+  {   // HAILSTORM: the barrels glow hot while they spin, a spinning muzzle ring
+    const heat = C(hb, .066, .066, .46, GL(0xff7a20, 0.01), 0, 0, -.13, 16); heat.userData.vmOnly = true; const mr = TOR(hb, .074, .005, GL(0xffd040), 0, 0, -.35, 6);
+    ANIM(hl, () => { const k = me ? me.spinK || 0 : 0; heat.material.opacity = k * .32; heat.visible = k > .02; mr.scale.setScalar(1 + k * .1); });
+  }
+  {   // ARC CASTER: lightning jumping between the three prongs and into the orb
+    const E2 = GL(0xd8b0ff, 0.8), bolts = [0, 1, 2, 3, 4, 5].map(() => { const b = B(ac, .003, .003, 1, E2, 0, 0, 0); b.userData.vmOnly = true; return b; }), P = [0, 2.094, 4.189].map(a => V3(Math.cos(a) * .05, Math.sin(a) * .05, -.6)), O = V3(0, 0, -.56), _a = V3(), _m = V3(), _Z = V3(0, 0, 1);
+    ANIM(ac, () => bolts.forEach((b, k) => {
+      const A = P[k % 3], Bp = k < 3 ? P[(k + 1) % 3] : O; b.visible = Math.random() < .55; if (!b.visible) return;
+      _m.copy(A).add(Bp).multiplyScalar(.5).add(_a.set(rand(-.008, .008), rand(-.008, .008), rand(-.006, .006)));
+      b.position.copy(_m); b.scale.set(1, 1, A.distanceTo(Bp)); b.quaternion.setFromUnitVectors(_Z, _a.copy(Bp).sub(A).normalize());
+    }));
+  }
+  {   // SINGULARITY: an accretion disc and debris spiralling into the black core
+    const disc = MS(sgl, new THREE.RingGeometry(.08, .17, 32), new THREE.MeshBasicMaterial({ color: 0xff4fd8, transparent: true, opacity: .28, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }), 0, .02, -.45);
+    const deb = SUB(sgl, 0, .02, -.45); for (let k = 0; k < 6; k++) { const a = k / 6 * Math.PI * 2; B(deb, .012, .012, .012, k % 2 ? metal : GL(0xffb0f0), Math.cos(a) * .15, Math.sin(a) * .15, 0); }
+    ANIM(sgl, (t, dt) => { disc.rotation.set(1.1 + Math.sin(t) * .15, .3, t * 2); disc.material.opacity = .22 + Math.sin(t * 5) * .06; deb.rotation.set(1.1, .3, t * 2.6); deb.scale.setScalar(1 - ((t * .4) % 1) * .55); });
+  }
   for (const g of [rifle, smg, sc, sn, rk, ps, vu, tr, hv, st, rg, hl, ac, sgl, xb, pb, fl, tf, ks, kn, su, lm, an, ma, pi, gm, mu, ob, sy, sx, lc, tn, th, ol, em, jo]) { g.visible = false; vm.root.add(g); vm.guns.push(g); }
   const fc = document.createElement('canvas'); fc.width = fc.height = 64; const fg = fc.getContext('2d');
   const grd = fg.createRadialGradient(32, 32, 0, 32, 32, 32); grd.addColorStop(0, 'rgba(255,255,220,1)'); grd.addColorStop(0.3, 'rgba(255,190,80,0.9)'); grd.addColorStop(1, 'rgba(255,100,0,0)');
@@ -12566,7 +12708,7 @@ const vmAccent = new THREE.MeshStandardMaterial({ color: 0x00e5ff, emissive: 0x0
   vm.flash = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(fc), blending: THREE.AdditiveBlending, depthWrite: false, transparent: true }));
   vm.flash.visible = false; vm.root.add(vm.flash);
   // each gun gets its own paint job so they read differently at a glance
-  const PAINT = [0x1a2440, 0x163020, 0x3a1a14, 0x3a3222, 0x2a3018, 0x26262e, 0x141210, 0x0e2c36, 0x3a220c, 0x2c1238, 0x0a1c2c, 0x2a2010, 0x1a0e30, 0x12061e, 0x1e2a12, 0x2a1030, 0x2a1a10, 0x2c2418, 0x1e2e3a, 0x161616, 0x0c2a34, 0x2a0c18, 0x2e2418, 0x22201c, 0x2c1c0e, 0x1c1c26, 0x141c34, 0x200c0c, 0x1a0c2e, 0x0c2830, 0x2c1e0a, 0x0e2a1a, 0x2a1a08, 0x2a1e14, 0x3a1608, 0x0e2236];
+  const PAINT = [0x1a2440, 0x163020, 0x3a1a14, 0x3a3222, 0x2a3018, 0x26262e, 0x141210, 0x0e2c36, 0x3a220c, 0x2c1238, 0x0a1c2c, 0x2a2010, 0x1a0e30, 0x12061e, 0x1e2a12, 0x2a1030, 0x2a1a10, 0x2c2418, 0x1e2e3a, 0x161616, 0x0c2a34, 0x2a0c18, 0x2e2418, 0x22201c, 0x2c1c0e, 0x1c1c26, 0x141c34, 0x200c0c, 0x1a0c2e, 0x0c2830, 0x1c140c, 0x0e2a1a, 0x2a1a08, 0x2a1e14, 0x3a1608, 0x0e2236];
   vm.paints = []; vm.paintColors = PAINT;
   vm.guns.forEach((g, i) => { const m = body.clone(); m.color.setHex(PAINT[i] || 0x141724); g.traverse(o => { if (o.material === body) o.material = m; }); vm.paints.push(m); });
   vmScene.add(vm.root);
@@ -12629,6 +12771,7 @@ function fireFx(p, w, muzzle) {
 function updateViewmodel(dt) {
   const scoped = isScoped(me);
   vm.guns.forEach((g, i) => g.visible = i === me.weapon);
+  for (const [g, f] of vm.anims) if (g.visible) f(time, dt);   // power weapons' moving parts
   vm.hailBarrels.rotation.z += dt * 38 * (me.spinK || 0);
   vm.singRing.rotation.z += dt * 3; vm.singRing.rotation.x = Math.sin(time * 2) * 0.4;
   vm.arcOrb.scale.setScalar(0.8 + Math.random() * 0.5);
