@@ -9151,7 +9151,7 @@ const SaveXfer = (() => {
 //  Browsers may serve a cached older page for a while (GitHub Pages: 10 min), and mismatched versions can't
 //  play together, so the game polls version.json and offers a cache-busting reload when a newer build is out.
 // =====================================================================
-const BUILD_ID = '5cdbd980db';
+const BUILD_ID = '72e44cb16e';
 const UpdateCheck = (() => {
   let shown = false;
   async function check() {
@@ -10587,11 +10587,9 @@ function applyLoadout(p) {
     const pri = PRIMARIES[Math.floor(Math.random() * PRIMARIES.length)], secs = SECONDARIES.filter(x => x !== pri);
     const sec = secs[Math.floor(Math.random() * secs.length)], nades = Object.keys(NADES);
     p.loadout = [pri, sec]; p.nadeType = nades[Math.floor(Math.random() * nades.length)];
-    addKnife(p);
     if (p === me) setTimeout(() => toast('ROULETTE', WEAPONS[pri].name + ' + ' + WEAPONS[sec].name + ' + ' + NADES[p.nadeType].name), 250);
-    return;
   }
-  if (forced) { p.loadout = forced.slice(); if (p === me || p.bot) p.nadeType = p === me ? (isUnlocked('nade', Settings.nade) && NADES[Settings.nade] ? Settings.nade : 'frag') : p.nadeType; }
+  else if (forced) { p.loadout = forced.slice(); if (p === me || p.bot) p.nadeType = p === me ? (isUnlocked('nade', Settings.nade) && NADES[Settings.nade] ? Settings.nade : 'frag') : p.nadeType; }
   else if (match.mode === 'gun') p.loadout = [GG_SEQ[ggLevel(p.gg)]];
   else if (p === me) {
     const pri = isUnlocked('weapon', Settings.primary) && PRIMARIES.includes(Settings.primary) ? Settings.primary : 0;
