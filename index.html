@@ -9151,7 +9151,7 @@ const SaveXfer = (() => {
 //  Browsers may serve a cached older page for a while (GitHub Pages: 10 min), and mismatched versions can't
 //  play together, so the game polls version.json and offers a cache-busting reload when a newer build is out.
 // =====================================================================
-const BUILD_ID = '72e44cb16e';
+const BUILD_ID = 'bb858927ca';
 const UpdateCheck = (() => {
   let shown = false;
   async function check() {
@@ -9838,7 +9838,7 @@ const MODES = {
   trials: { name: 'TRIALS', voice: 'trials', desc: 'Solo movement time-trial: race through the checkpoints.', limit: 1, solo: true, infinite: true, power: false },
   infect: { name: 'INFECTION', voice: 'infection', desc: 'Party: one player starts INFECTED (knife, fast, one-stab kills). Killed survivors join them. Survive the timer to score. {n} rounds.', limit: 4, teams: true, party: true, noClock: true, power: false },
   jugg: { name: 'JUGGERNAUT', voice: 'juggernaut', desc: 'Party: everyone vs one giant LMG Juggernaut. Kill it to become it. First to {n} points.', limit: 15, teams: true, party: true, power: false },
-  hide: { name: 'HIDE & SEEK', voice: 'hide and seek', desc: 'Party: hiders turn into props and hide while the seekers are blind. Found hiders become seekers. Misses cost seekers HP. {n} rounds.', limit: 4, teams: true, party: true, noClock: true, power: false, noNades: true },
+  hide: { name: 'HIDE & SEEK', voice: 'hide and seek', desc: 'Party: hiders turn into props and hide while the seekers are blind. Found hiders become seekers. Misses cost seekers HP. {n} rounds.', limit: 4, teams: true, party: true, noClock: true, power: false, noNades: true, humans: 3 },   // playlist: only with 3+ real people
   hammer: { name: 'HAMMERFALL', desc: 'Third-person hammer brawl: everyone swings a TITAN HAMMER. Dead-centre hits kill, edges bruise. RMB leaps sky-high and crashes down where you aim, double jump in the air. Knock enemies off the floating arena. First to {n}.', limit: 15, loadout: [W_TITAN], infinite: true, noNades: true, power: false, tp: true, djump: true, air: 1.5 },
   smash: { name: 'SMASHFALL', desc: 'Hammer brawl where damage never kills: every hit raises your DAMAGE %, and the higher it gets, the further hits launch you. The only way to die is being knocked off THE CRUCIBLE. First to {n} ring-outs.', limit: 10, loadout: [W_TITAN], infinite: true, noNades: true, power: false, tp: true, djump: true, air: 1.5, hpFix: 999, noRegen: true },
   hball: { name: 'HAMMER BALL', desc: 'Red vs Blue soccer with titan hammers. Swing to shoot (look up to loft it), uppercut to pop it up, leap-slam to blast it, throw the hammer at it. Hammers only BUMP players here (no damage), but you can still bump them off THE PITCH. First to {n} goals.', limit: 5, teams: true, loadout: [W_TITAN], infinite: true, noNades: true, power: false, tp: true, djump: true, air: 1.5 },
@@ -9892,7 +9892,8 @@ const playlistOn = () => Settings.mode === 'playlist';
 // modes that always play on their own map
 const forcedMap = m => m === 'breach' ? World.BREACH_START : m === 'hammer' || m === 'smash' ? World.HAMMER_MAP : m === 'hball' ? World.PITCH_MAP : null;
 function pickPlaylist(prevMode, prevMap) {
-  const modes = PLAYLIST_MODES.filter(m => m !== prevMode);
+  const humans = 1 + (net && net.conns && !net.practice ? net.conns.size : 0);   // you + connected friends
+  const modes = PLAYLIST_MODES.filter(m => m !== prevMode && humans >= (MODES[m].humans || 1));   // modes bots can't carry stay out until enough people are in
   const mode = modes[Math.floor(Math.random() * modes.length)];
   if (forcedMap(mode) !== null) return { mode, map: forcedMap(mode) };
   const n = World.MAPS.length; let map;
